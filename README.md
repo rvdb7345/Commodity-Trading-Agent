@@ -14,8 +14,9 @@ _Before env installation:_ Make sure that openmpi is installed. If not yet insta
 
 For Mac:
 ```commandline
-brew install cmake openmpi
+brew install open-mpi
 ```
+As outlined in the documentation of mpi4py (for which open-mpi is needed), check if the mpicc compiler wrapper is on your search path by running `echo $PATH`. If not, add it by running `export PATH=$PATH:~/path/to/mpicc` for mac users the path is something like: "opt/homebrew/bin/mpicc"
 
 For ubuntu:
 ```commandline
