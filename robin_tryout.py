@@ -30,7 +30,7 @@ class BuyerEnvironment(gym.Env):
         self.reward_range = (0, MAX_ACCOUNT_BALANCE)
 
         # Actions of the format Buy x%, or refrain, etc.
-        self.action_space = spaces.Box(low=np.array([0, 0]), high=np.array([2, 1000000]))
+        self.action_space = spaces.Box(low=np.array([0, 0]), high=np.array([2, 1000]))
         # Prices contains the OHCL values for the last five prices
 
         self.lookback_period = 5
@@ -126,7 +126,12 @@ class BuyerEnvironment(gym.Env):
             self.current_step = 0
         delay_modifier = (self.current_step / MAX_STEPS)
 
-        reward = self.balance * delay_modifier
+        reward = 10000
+
+        # add a penalty
+        if self.current_inventory < self.min_inventory_threshold:
+            reward += 1000 * (self.current_inventory - self.min_inventory_threshold)
+
         done = self.net_worth <= 0
         obs = self._next_observation()
         return obs, reward, done, {}
@@ -211,12 +216,12 @@ if __name__ == '__main__':
     # define buyer properties
     properties = {
         'product_shelf_life': 8,
-        'ordering_cost': 0.5,
-        'storage_capacity': 10000,
-        'min_inventory_threshold': 2000,
-        'consumption_rate': 1000,
-        'storage_cost': 1,
-        'cash_inflow': 10000
+        'ordering_cost': 0.1,
+        'storage_capacity': 200000,
+        'min_inventory_threshold': 100,
+        'consumption_rate': 200,
+        'storage_cost': 0.1,
+        'cash_inflow': 1000000
     }
 
     # The algorithms require a vectorized environment to run
@@ -224,7 +229,7 @@ if __name__ == '__main__':
     model = PPO("MlpPolicy", env, verbose=20)
 
     # train model
-    model.learn(total_timesteps=100000)
+    model.learn(total_timesteps=20000)
 
     # carry out simulation
     obs = env.reset()
