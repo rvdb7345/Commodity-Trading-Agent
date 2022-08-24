@@ -28,11 +28,9 @@ class StockTradingEnvironment(gym.Env):
         self.df = df
         self.reward_range = (0, MAX_ACCOUNT_BALANCE)
         # Actions of the format Buy x%, Sell x%, Hold, etc.
-        self.action_space = spaces.Box(
-          low=np.array([0, 0]), high=np.array([3, 1]), dtype=np.float16)
+        self.action_space = spaces.Box(low=np.array([0, 0]), high=np.array([3, 1]), dtype=np.float16)
         # Prices contains the OHCL values for the last five prices
-        self.observation_space = spaces.Box(
-          low=0, high=1, shape=(6, 6), dtype=np.float16)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(6, 6), dtype=np.float16)
 
     def reset(self):
         # Reset the state of the environment to an initial state
@@ -45,7 +43,7 @@ class StockTradingEnvironment(gym.Env):
         self.total_sales_value = 0
 
         # Set the current step to a random point within the data frame
-        self.current_step = random.randint(0, len(self.df.loc[:, 'Open'].values) - 6)
+        self.current_step = random.randint(0, len(self.df.loc[:, 'y'].values) - 6)
         return self._next_observation()
 
 
@@ -53,16 +51,48 @@ class StockTradingEnvironment(gym.Env):
         # Get the data points for the last 5 days and scale to between 0-1
         frame = np.array([
             self.df.loc[self.current_step: self.current_step +
-                                           5, 'Open'].values / MAX_SHARE_PRICE,
+                                           5, 'y'].values / MAX_SHARE_PRICE,
             self.df.loc[self.current_step: self.current_step +
-                                           5, 'High'].values / MAX_SHARE_PRICE,
+                                           5, 'y_24_quo'].values / MAX_SHARE_PRICE,
             self.df.loc[self.current_step: self.current_step +
-                                           5, 'Low'].values / MAX_SHARE_PRICE,
+                                           5, 'y_26_quo'].values / MAX_SHARE_PRICE,
             self.df.loc[self.current_step: self.current_step +
-                                           5, 'Close'].values / MAX_SHARE_PRICE,
+                                           5, 'y_37_quo'].values / MAX_SHARE_PRICE,
             self.df.loc[self.current_step: self.current_step +
-                                           5, 'Volume'].values / MAX_NUM_SHARES,
+                                           5, 'y_94_quo'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'y_20_quo'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'y_6_quo'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'y_227_pro'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'y_785_end'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'ma4'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'var4'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'momentum0'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'rsi'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'MACD'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'upper_band'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'ema'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'diff4'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'lower_band'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'momentum1'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step: self.current_step +
+                                           5, 'kalman'].values / MAX_SHARE_PRICE,
         ])
+
+
         # Append additional data and scale each value to between 0-1
         obs = np.append(frame, [[
             self.balance / MAX_ACCOUNT_BALANCE,
@@ -72,13 +102,14 @@ class StockTradingEnvironment(gym.Env):
             self.total_shares_sold / MAX_NUM_SHARES,
             self.total_sales_value / (MAX_NUM_SHARES * MAX_SHARE_PRICE),
         ]], axis=0)
+        
         return obs
 
     def step(self, action):
         # Execute one time step within the environment
         self._take_action(action)
         self.current_step += 1
-        if self.current_step > len(self.df.loc[:, 'Open'].values) - 6:
+        if self.current_step > len(self.df.loc[:, 'y'].values) - 6:
             self.current_step = 0
         delay_modifier = (self.current_step / MAX_STEPS)
 
@@ -89,8 +120,7 @@ class StockTradingEnvironment(gym.Env):
 
     def _take_action(self, action):
         # Set the current price to a random price within the time step
-        current_price = random.uniform(
-            self.df.loc[self.current_step, "Open"], self.df.loc[self.current_step, "Close"])
+        current_price = self.df.loc[self.current_step, "y"]
 
         action_type = action[0]
         amount = action[1]
@@ -141,8 +171,8 @@ class StockTradingEnvironment(gym.Env):
 if __name__ == '__main__':
 
 
-    df = pd.read_csv('./data/AAPL.csv')
-    df = df.sort_values('Date')
+    df = pd.read_csv('./data/US_SMP_food_TA.csv').iloc[69:].reset_index()
+    df = df.sort_values('ds')
     # The algorithms require a vectorized environment to run
     env = DummyVecEnv([lambda: StockTradingEnvironment(df)])
     model = PPO("MlpPolicy", env, verbose=20)
