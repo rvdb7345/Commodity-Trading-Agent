@@ -190,15 +190,14 @@ class BuyerEnvironment(gym.Env):
         """Plot the behaviour of the buyer agent."""
 
         # cut off all trailing zeros
-        nz = np.nonzero(self.buy_tracker)
-        buys_per_step = self.buy_tracker[nz[0].min():nz[0].max() + 1,
-                      nz[1].min():nz[1].max() + 1]
+        buys_per_step = self.buy_tracker[:self.counter]
 
-        plt.figure()
+        f, ax = plt.subplots()
         plt.title('Buys per time step')
         plt.xlabel('Time step')
         plt.ylabel('Bought product')
-        plt.plot(buys_per_step[:, 0], buys_per_step[:,1])
+        points = ax.scatter(buys_per_step[:, 0], df.loc[buys_per_step[:, 0], 'y'], marker='o', c=buys_per_step[:,1], cmap="plasma")
+        f.colorbar(points)
         plt.show()
 
 
