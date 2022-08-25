@@ -25,7 +25,7 @@ MAX_PRODUCT_PRICE = 5000
 MAX_OPEN_POSITIONS = 5
 MAX_STEPS = 20000
 
-INITIAL_ACCOUNT_BALANCE = 25000000
+INITIAL_ACCOUNT_BALANCE = 10000000
 
 
 class BuyerEnvironment(gym.Env):
@@ -54,7 +54,7 @@ class BuyerEnvironment(gym.Env):
         # self.observation_space = spaces.Box(low=0, high=1, shape=(21, self.lookback_period + 1), dtype=np.float16)
         self.observation_space = spaces.Dict({
             'time_series': spaces.Box(low=0, high=np.inf, shape=(20, self.lookback_period)),
-            'env_props': spaces.Box(low=0, high=1, shape=(4,))
+            'env_props': spaces.Box(low=0, high=1, shape=(6,))
         })
 
         self.product_shelf_life = properties['product_shelf_life']
@@ -66,6 +66,7 @@ class BuyerEnvironment(gym.Env):
         self.cash_inflow = properties['cash_inflow']
         self.buy_tracker = np.zeros((100000, 2))
         self.counter = 0
+        self.reward = []
 
     def reset(self) -> dict:
         """Reset the state of the environment to an initial state.
@@ -77,7 +78,7 @@ class BuyerEnvironment(gym.Env):
         self.current_inventory = self.min_inventory_threshold * 2
         self.cost_basis = 0
         self.total_spent_value = 0
-        self.reward = None
+        self.reward_tracker = np.zeros((100000, 2))
         self.buy_tracker = np.zeros((100000, 2))
         self.counter = 0
 
@@ -92,6 +93,10 @@ class BuyerEnvironment(gym.Env):
             Next inputs for model
         """
 
+        current_price = self.df.loc[self.current_step, "y"]
+        self.cash_buy_limit = int(self.balance / current_price)
+        self.storage_buy_limit = self.storage_capacity - self.current_inventory
+
         # Get the data points for the last 'look_back' weeks and scale to between 0-1
         frame = {
             'time_series': [
@@ -99,10 +104,12 @@ class BuyerEnvironment(gym.Env):
                 for feat_name in self.ts_feature_names
             ],
             'env_props': [
-                self.balance / MAX_ACCOUNT_BALANCE,
-                self.current_inventory / MAX_NUM_PRODUCT,
-                self.cost_basis / MAX_PRODUCT_PRICE,
-                self.total_spent_value / (MAX_NUM_PRODUCT * MAX_PRODUCT_PRICE),
+                self.balance,
+                self.current_inventory/self.storage_capacity,
+                self.cost_basis,
+                self.min_inventory_threshold,
+                self.cash_buy_limit,
+                self.storage_buy_limit,                
         ]}
 
         # Append additional data and scale each value to between 0-1
@@ -111,6 +118,7 @@ class BuyerEnvironment(gym.Env):
 
     def step(self, action: float) -> Union[dict, float, bool, dict]:
         """Take the next action and update observations and rewards."""
+        print('----------')
         # Execute one time step within the environment
         action = action*10000
         self._take_action(action)
@@ -130,7 +138,7 @@ class BuyerEnvironment(gym.Env):
         - action higher than storage/cash limit
         '''
         reward = 0
-        reward = delay_modifier*action[0]
+        # reward = delay_modifier*action[0]
         
         
         # add a penalty
@@ -142,14 +150,15 @@ class BuyerEnvironment(gym.Env):
         
         # determine max amount of buyable product (storage and cash constraints)
         current_price = self.df.loc[self.current_step, "y"]
-        cash_buy_limit = int(self.balance / current_price)
-        storage_buy_limit = self.storage_capacity - self.current_inventory
-        if action > cash_buy_limit or action > storage_buy_limit:
+        self.cash_buy_limit = int(self.balance / current_price)
+        self.storage_buy_limit = self.storage_capacity - self.current_inventory
+        if action > self.cash_buy_limit or action > self.storage_buy_limit:
             reward -= 5
         
         next_week_price = self.df.loc[self.current_step + 1, "y"]
         price_profit = current_price - next_week_price
-        reward += price_profit * 1
+        reward += price_profit * .1
+        print('price profit', price_profit * .1)
 
         obs = self._next_observation()
         done = False  # TODO: change
@@ -163,8 +172,15 @@ class BuyerEnvironment(gym.Env):
 
         # track the buys at every step
         self.buy_tracker[self.counter] = np.array([self.current_step, action[0]])
-        self.counter += 1
 
+        if self.counter == self.reward_tracker.shape[1]:
+            self.reward_tracker = np.vstack([self.reward_tracker, np.zeros(self.reward_tracker.shape)])
+            
+        self.reward_tracker[self.counter] = np.array([self.current_step, reward])
+
+        print('reward', reward)
+        
+        self.counter += 1
         return obs, reward, done, {}
 
     def _take_action(self, action: float):
@@ -177,15 +193,23 @@ class BuyerEnvironment(gym.Env):
         print(amount)
 
         # determine max amount of buyable product (storage and cash constraints)
-        cash_buy_limit = int(self.balance / current_price)
-        storage_buy_limit = self.storage_capacity - self.current_inventory
-        product_bought = min([storage_buy_limit, cash_buy_limit, amount])
+        self.cash_buy_limit = int(self.balance / current_price)
+        print('cash buy liit', self.cash_buy_limit)
+        self.storage_buy_limit = self.storage_capacity - self.current_inventory
+        print('current inventory', self.current_inventory)
+        print('storage buy limit', self.storage_buy_limit)
+
+        product_bought = min([self.storage_buy_limit, self.cash_buy_limit, amount])
+        print('product bought', product_bought)
+
         
         # calculate average buying price of previous products
         prev_cost = self.cost_basis * self.current_inventory
 
         # calculate cost of current acquisition
         additional_cost = product_bought * (current_price + self.ordering_cost)
+        print('additional cost', additional_cost)
+
 
         # update balance
         self.balance -= additional_cost
@@ -209,6 +233,11 @@ class BuyerEnvironment(gym.Env):
 
         # update balance with operational costs
         self.balance += self.cash_inflow - self.storage_cost * self.current_inventory
+
+        print(f'Balance: {self.balance}')
+        print(f'current price: {current_price}')
+
+
         
 
     def render(self, mode='human', close=False):
@@ -219,7 +248,7 @@ class BuyerEnvironment(gym.Env):
         print(f'product held: {self.current_inventory}')
         print(f'Avg cost for held product: {self.cost_basis} (Total spent value: {self.total_spent_value})')
 
-    def plot(self):
+    def plot_buys(self):
         """Plot the behaviour of the buyer agent."""
 
         # cut off all trailing zeros
@@ -232,8 +261,20 @@ class BuyerEnvironment(gym.Env):
         points = ax.scatter(buys_per_step[:, 0], df.loc[buys_per_step[:, 0], 'y'],
                             marker='o', c=buys_per_step[:, 1], cmap='hot')
         f.colorbar(points)
-        plt.show()
 
+    def plot_rewards(self):
+        """Plot the behaviour of the buyer agent."""
+
+        # cut off all trailing zeros
+        reward_per_step = self.reward_tracker[:self.counter]
+        f, ax = plt.subplots()
+        plt.title('reward per time step')
+        plt.xlabel('Time step')
+        plt.ylabel('Price of product')
+        plt.plot(reward_per_step[:, 0], df.loc[reward_per_step[:, 0], 'y'], linewidth=0.1)
+        points = ax.scatter(reward_per_step[:, 0], df.loc[reward_per_step[:, 0], 'y'],
+                            marker='o', c=reward_per_step[:, 1], cmap='RdYlGn')
+        f.colorbar(points)
 
 if __name__ == '__main__':
 
@@ -248,7 +289,7 @@ if __name__ == '__main__':
         'min_inventory_threshold': 4000,
         'consumption_rate': 3000,
         'storage_cost': 0.1,
-        'cash_inflow': 7500000
+        'cash_inflow': 6000000
     }
 
     ts_feature_names = \
@@ -260,7 +301,7 @@ if __name__ == '__main__':
 
     # specify the model used for learning a policy
     # model = RecurrentPPO("MlpLstmPolicy", env, verbose=20)
-    model = PPO('MlpPolicy', env, verbose=20, learning_rate=0.1)
+    model = PPO('MlpPolicy', env, verbose=20, learning_rate=0.01)
 
     # train model
     model.learn(total_timesteps=50000)
@@ -274,4 +315,7 @@ if __name__ == '__main__':
         if i % 200 == 0:
             env.render()
 
-    env.env_method('plot')
+    env.env_method('plot_buys')
+    env.env_method('plot_rewards')
+    plt.show()
+
