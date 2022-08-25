@@ -67,6 +67,14 @@ urllib3 = "==1.26.11"
 werkzeug = "==2.2.2"
 wrapt = "==1.14.1"
 zipp = "==3.8.1"
+distlib = "==0.3.5"
+filelock = "==3.8.0"
+pipenv = "==2022.8.19"
+platformdirs = "==2.5.2"
+pyglet = "==1.5.26"
+sb3-contrib = "==1.6.0"
+virtualenv = "==20.16.3"
+virtualenv-clone = "==0.5.7"
 
 [dev-packages]
 
