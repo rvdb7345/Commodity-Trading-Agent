@@ -49,7 +49,7 @@ class BuyerEnvironment(gym.Env):
         # Actions of the format Buy x%, or refrain, etc.
         self.action_space = spaces.Box(low=0, high=20000, shape=(1,))
 
-        self.lookback_period = 20
+        self.lookback_period = 26
         # self.observation_space = spaces.Box(low=0, high=1, shape=(21, self.lookback_period + 1), dtype=np.float16)
         self.observation_space = spaces.Dict({
             'time_series': spaces.Box(low=0, high=np.inf, shape=(20, self.lookback_period)),
@@ -77,6 +77,8 @@ class BuyerEnvironment(gym.Env):
         self.cost_basis = 0
         self.total_spent_value = 0
         self.reward = None
+        self.buy_tracker = np.zeros((100000, 2))
+        self.counter = 0
 
         # Set the current step to a random point within the data frame
         self.current_step = random.randint(0, len(self.df.loc[:, 'y'].values) - (self.lookback_period + 1))
@@ -130,6 +132,12 @@ class BuyerEnvironment(gym.Env):
 
         # print(self.buy_tracker, self.buy_tracker[self.counter])
         # print([self.current_step, action])
+
+        # if tracker too small, add rows
+        if self.counter == self.buy_tracker.shape[1]:
+            self.buy_tracker = np.vstack([self.buy_tracker, np.zeros(self.buy_tracker.shape)])
+
+        # track the buys at every step
         self.buy_tracker[self.counter] = np.array([self.current_step, action[0]])
         self.counter += 1
 
@@ -191,12 +199,13 @@ class BuyerEnvironment(gym.Env):
 
         # cut off all trailing zeros
         buys_per_step = self.buy_tracker[:self.counter]
-
         f, ax = plt.subplots()
         plt.title('Buys per time step')
         plt.xlabel('Time step')
-        plt.ylabel('Bought product')
-        points = ax.scatter(buys_per_step[:, 0], df.loc[buys_per_step[:, 0], 'y'], marker='o', c=buys_per_step[:,1], cmap="plasma")
+        plt.ylabel('Price of product')
+        plt.plot(buys_per_step[:, 0], df.loc[buys_per_step[:, 0], 'y'], linewidth=0.1)
+        points = ax.scatter(buys_per_step[:, 0], df.loc[buys_per_step[:, 0], 'y'],
+                            marker='o', c=buys_per_step[:, 1], cmap='hot')
         f.colorbar(points)
         plt.show()
 
@@ -230,7 +239,6 @@ if __name__ == '__main__':
 
     # train model
     model.learn(total_timesteps=10000)
-
 
     # carry out simulation
     obs = env.reset()
