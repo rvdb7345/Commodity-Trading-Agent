@@ -19,7 +19,7 @@ MAX_PRODUCT_PRICE = 5000
 MAX_OPEN_POSITIONS = 5
 MAX_STEPS = 20000
 
-INITIAL_ACCOUNT_BALANCE = 10000
+INITIAL_ACCOUNT_BALANCE = 25000000
 
 class BuyerEnvironment(gym.Env):
     """A stock trading environment for OpenAI gym"""
@@ -31,7 +31,7 @@ class BuyerEnvironment(gym.Env):
         self.reward_range = (0, MAX_ACCOUNT_BALANCE)
 
         # Actions of the format Buy x%, or refrain, etc.
-        self.action_space = spaces.Box(low=0, high=100000, shape=(1,))
+        self.action_space = spaces.Box(low=0, high=20000, shape=(1,))
 
 
         self.lookback_period = 20
@@ -151,9 +151,9 @@ class BuyerEnvironment(gym.Env):
 
 
         # determine max amount of buyable product (storage and cash constraints)
-        total_possible_cash = int(self.balance / current_price)
-        total_possible_storage = self.storage_capacity - self.current_inventory
-        product_bought = min([total_possible_storage, total_possible_cash, amount])
+        cash_buy_limit = int(self.balance / current_price)
+        storage_buy_limit = self.storage_capacity - self.current_inventory
+        product_bought = min([storage_buy_limit, cash_buy_limit, amount])
 
         # calculate average buying price of previous products
         prev_cost = self.cost_basis * self.current_inventory
@@ -176,8 +176,8 @@ class BuyerEnvironment(gym.Env):
         if self.current_inventory == 0:
             self.cost_basis = 0
 
-        # if self.current_inventory < 0:
-        #     self.current_inventory = 0
+        if self.current_inventory < 0:
+            self.current_inventory = 0
 
         # update inventory with spoiled and used product
         self.current_inventory -= self.consumption_rate
@@ -204,11 +204,11 @@ if __name__ == '__main__':
     properties = {
         'product_shelf_life': 8,
         'ordering_cost': 0.1,
-        'storage_capacity': 200000,
-        'min_inventory_threshold': 100,
-        'consumption_rate': 200,
+        'storage_capacity': 40000,
+        'min_inventory_threshold': 4000,
+        'consumption_rate': 3000,
         'storage_cost': 0.1,
-        'cash_inflow': 100000
+        'cash_inflow': 7500000
     }
 
     # The algorithms require a vectorized environment to run
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     model = PPO("MlpPolicy", env, verbose=20)
 
     # train model
-    model.learn(total_timesteps=40000)
+    model.learn(total_timesteps=10000)
 
     # carry out simulation
     obs = env.reset()
