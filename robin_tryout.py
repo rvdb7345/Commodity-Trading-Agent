@@ -65,49 +65,6 @@ class BuyerEnvironment(gym.Env):
 
     def _next_observation(self):
         # Get the data points for the last 'look_back' weeks and scale to between 0-1
-        # frame = {'time_series':[
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['y'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['y_24_quo'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['y_26_quo'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['y_37_quo'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['y_94_quo'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['y_20_quo'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['y_6_quo'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['y_227_pro'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['y_785_end'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['ma4'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['var4'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['momentum0'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['rsi'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['MACD'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['upper_band'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['ema'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['diff4'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['lower_band'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['momentum1'].values / MAX_PRODUCT_PRICE,
-        #     self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period, :]['kalman'].values / MAX_PRODUCT_PRICE,
-        # ]}
-
         frame = {'time_series': [
             self.df.iloc[self.current_step: self.current_step + self.lookback_period, :][feat_name].values
             for feat_name in self.ts_feature_names
