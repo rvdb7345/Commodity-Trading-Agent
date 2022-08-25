@@ -2,6 +2,7 @@
 Created for the R&D C7 - RL trading agent project.
 """
 
+from typing import Union
 import gym
 import json
 import random
@@ -46,7 +47,7 @@ class BuyerEnvironment(gym.Env):
         self.reward_range = (0, MAX_ACCOUNT_BALANCE)
 
         # Actions of the format Buy x%, or refrain, etc.
-        self.action_space = spaces.Box(low=0, high=20000, shape=(1,))
+        self.action_space = spaces.Box(low=0, high=1, shape=(1,))
 
         self.lookback_period = 20
         # self.observation_space = spaces.Box(low=0, high=1, shape=(21, self.lookback_period + 1), dtype=np.float16)
@@ -103,24 +104,47 @@ class BuyerEnvironment(gym.Env):
 
         return frame
 
-    def step(self, action: float) -> [dict, float, bool, dict]:
+    def step(self, action: float) -> Union[dict, float, bool, dict]:
         """Take the next action and update observations and rewards."""
         # Execute one time step within the environment
+        action = action*10000
         self._take_action(action)
         self.current_step += 1
         if self.current_step > len(self.df.loc[:, 'y'].values) - self.lookback_period:
             self.current_step = 0
         delay_modifier = (self.current_step / MAX_STEPS)
 
-        if not self.reward:
-            reward = 10000
-
+        
+        ## REWARD
+        '''
+        reward
+        - as cheap as possible
+        punish
+        - inventory below threshold
+        - inventory below 0 (high punishment)
+        - action higher than storage/cash limit
+        '''
+        reward = 0
+        reward = delay_modifier*action[0]
+        
+        
         # add a penalty
         if self.current_inventory < self.min_inventory_threshold:
-            reward += 1000000 * (self.current_inventory - self.min_inventory_threshold)
+            reward += -5 #* (self.current_inventory - self.min_inventory_threshold)
 
         if self.current_inventory < 0:
-            reward -= 100000
+            reward -= 10
+        
+        # determine max amount of buyable product (storage and cash constraints)
+        current_price = self.df.loc[self.current_step, "y"]
+        cash_buy_limit = int(self.balance / current_price)
+        storage_buy_limit = self.storage_capacity - self.current_inventory
+        if action > cash_buy_limit or action > storage_buy_limit:
+            reward -= 5
+        
+        next_week_price = self.df.loc[self.current_step + 1, "y"]
+        price_profit = current_price - next_week_price
+        reward += price_profit * 1
 
         obs = self._next_observation()
         done = False  # TODO: change
@@ -134,13 +158,13 @@ class BuyerEnvironment(gym.Env):
         current_price = self.df.loc[self.current_step, "y"]
 
         amount = action
-        # print(amount)
+        print(amount)
 
         # determine max amount of buyable product (storage and cash constraints)
         cash_buy_limit = int(self.balance / current_price)
         storage_buy_limit = self.storage_capacity - self.current_inventory
         product_bought = min([storage_buy_limit, cash_buy_limit, amount])
-
+        
         # calculate average buying price of previous products
         prev_cost = self.cost_basis * self.current_inventory
 
@@ -162,14 +186,15 @@ class BuyerEnvironment(gym.Env):
         if self.current_inventory == 0:
             self.cost_basis = 0
 
-        if self.current_inventory < 0:
-            self.current_inventory = 0
+        # if self.current_inventory < 0:
+        #     self.current_inventory = 0
 
         # update inventory with spoiled and used product
         self.current_inventory -= self.consumption_rate
 
         # update balance with operational costs
         self.balance += self.cash_inflow - self.storage_cost * self.current_inventory
+        
 
     def render(self, mode='human', close=False):
         """Render the environment to the screen."""
@@ -205,14 +230,14 @@ if __name__ == '__main__':
 
     # specify the model used for learning a policy
     # model = RecurrentPPO("MlpLstmPolicy", env, verbose=20)
-    model = PPO('MlpPolicy', env, verbose=20)
+    model = PPO('MlpPolicy', env, verbose=20, learning_rate=0.1)
 
     # train model
-    model.learn(total_timesteps=10000)
+    model.learn(total_timesteps=50000)
 
     # carry out simulation
     obs = env.reset()
-    for i in range(4000):
+    for i in range(1000):
         action, _states = model.predict(obs)
         obs, rewards, done, info = env.step(action)
 
