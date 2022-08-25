@@ -1,3 +1,7 @@
+"""File containing the first draft of the Buyer Agent.
+Created for the R&D C7 - RL trading agent project.
+"""
+
 import gym
 import json
 import random
@@ -26,7 +30,15 @@ class BuyerEnvironment(gym.Env):
     """A stock trading environment for OpenAI gym"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, df, properties, ts_feature_names):
+    def __init__(self, df: pd.DataFrame, properties: dict, ts_feature_names: list):
+        """Initiate buyer environment, creating the observation and action spaces.
+
+        Args:
+            df: time series data
+            properties: values dictating the properties of the buyer environment
+            ts_feature_names: names of the time series features to use
+        """
+
         super(BuyerEnvironment, self).__init__()
         self.df = df
         self.ts_feature_names = ts_feature_names
@@ -51,8 +63,12 @@ class BuyerEnvironment(gym.Env):
         self.storage_cost = properties['storage_cost']
         self.cash_inflow = properties['cash_inflow']
 
-    def reset(self):
-        # Reset the state of the environment to an initial state
+    def reset(self) -> dict:
+        """Reset the state of the environment to an initial state.
+
+        Returns:
+            Initial observation to start with
+        """
         self.balance = INITIAL_ACCOUNT_BALANCE
         self.current_inventory = self.min_inventory_threshold * 2
         self.cost_basis = 0
@@ -63,24 +79,32 @@ class BuyerEnvironment(gym.Env):
         self.current_step = random.randint(0, len(self.df.loc[:, 'y'].values) - (self.lookback_period + 1))
         return self._next_observation()
 
-    def _next_observation(self):
+    def _next_observation(self) -> dict:
+        """Create observation dictionary with all features.
+
+        Returns:
+            Next inputs for model
+        """
+
         # Get the data points for the last 'look_back' weeks and scale to between 0-1
-        frame = {'time_series': [
-            self.df.iloc[self.current_step: self.current_step + self.lookback_period, :][feat_name].values
-            for feat_name in self.ts_feature_names
+        frame = {
+            'time_series': [
+                self.df.iloc[self.current_step: self.current_step + self.lookback_period, :][feat_name].values
+                for feat_name in self.ts_feature_names
             ],
             'env_props': [
-            self.balance / MAX_ACCOUNT_BALANCE,
-            self.current_inventory / MAX_NUM_PRODUCT,
-            self.cost_basis / MAX_PRODUCT_PRICE,
-            self.total_spent_value / (MAX_NUM_PRODUCT * MAX_PRODUCT_PRICE),
+                self.balance / MAX_ACCOUNT_BALANCE,
+                self.current_inventory / MAX_NUM_PRODUCT,
+                self.cost_basis / MAX_PRODUCT_PRICE,
+                self.total_spent_value / (MAX_NUM_PRODUCT * MAX_PRODUCT_PRICE),
         ]}
 
         # Append additional data and scale each value to between 0-1
 
         return frame
 
-    def step(self, action):
+    def step(self, action: float) -> [dict, float, bool, dict]:
+        """Take the next action and update observations and rewards."""
         # Execute one time step within the environment
         self._take_action(action)
         self.current_step += 1
@@ -103,7 +127,9 @@ class BuyerEnvironment(gym.Env):
 
         return obs, reward, done, {}
 
-    def _take_action(self, action):
+    def _take_action(self, action: float):
+        """Update state parameters based on the action."""
+
         # Set the current price to a random price within the time step
         current_price = self.df.loc[self.current_step, "y"]
 
@@ -146,7 +172,7 @@ class BuyerEnvironment(gym.Env):
         self.balance += self.cash_inflow - self.storage_cost * self.current_inventory
 
     def render(self, mode='human', close=False):
-        # Render the environment to the screen
+        """Render the environment to the screen."""
 
         print(f'Step: {self.current_step}')
         print(f'Balance: {self.balance}')
