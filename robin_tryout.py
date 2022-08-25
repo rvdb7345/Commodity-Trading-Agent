@@ -9,6 +9,7 @@ import random
 import numpy as np
 import datetime as dt
 import pandas as pd
+from matplotlib import pyplot as plt
 
 from stable_baselines3.sac.policies import MlpPolicy
 from stable_baselines3.common.vec_env import DummyVecEnv
@@ -62,6 +63,8 @@ class BuyerEnvironment(gym.Env):
         self.consumption_rate = properties['consumption_rate']
         self.storage_cost = properties['storage_cost']
         self.cash_inflow = properties['cash_inflow']
+        self.buy_tracker = np.zeros((100000, 2))
+        self.counter = 0
 
     def reset(self) -> dict:
         """Reset the state of the environment to an initial state.
@@ -125,6 +128,11 @@ class BuyerEnvironment(gym.Env):
         obs = self._next_observation()
         done = False  # TODO: change
 
+        # print(self.buy_tracker, self.buy_tracker[self.counter])
+        # print([self.current_step, action])
+        self.buy_tracker[self.counter] = np.array([self.current_step, action[0]])
+        self.counter += 1
+
         return obs, reward, done, {}
 
     def _take_action(self, action: float):
@@ -151,8 +159,7 @@ class BuyerEnvironment(gym.Env):
         self.balance -= additional_cost
 
         # calculate average buying price of all products
-        self.cost_basis = (
-                                  prev_cost + additional_cost) / (self.current_inventory + product_bought)
+        self.cost_basis = (prev_cost + additional_cost) / (self.current_inventory + product_bought)
 
         # update inventory
         self.current_inventory += product_bought
@@ -178,6 +185,21 @@ class BuyerEnvironment(gym.Env):
         print(f'Balance: {self.balance}')
         print(f'product held: {self.current_inventory}')
         print(f'Avg cost for held product: {self.cost_basis} (Total spent value: {self.total_spent_value})')
+
+    def plot(self):
+        """Plot the behaviour of the buyer agent."""
+
+        # cut off all trailing zeros
+        nz = np.nonzero(self.buy_tracker)
+        buys_per_step = self.buy_tracker[nz[0].min():nz[0].max() + 1,
+                      nz[1].min():nz[1].max() + 1]
+
+        plt.figure()
+        plt.title('Buys per time step')
+        plt.xlabel('Time step')
+        plt.ylabel('Bought product')
+        plt.plot(buys_per_step[:, 0], buys_per_step[:,1])
+        plt.show()
 
 
 if __name__ == '__main__':
@@ -208,13 +230,15 @@ if __name__ == '__main__':
     model = PPO('MlpPolicy', env, verbose=20)
 
     # train model
-    model.learn(total_timesteps=40000)
+    model.learn(total_timesteps=100)
 
     # carry out simulation
     obs = env.reset()
-    for i in range(4000):
+    for i in range(1000):
         action, _states = model.predict(obs)
         obs, rewards, done, info = env.step(action)
 
         if i % 200 == 0:
             env.render()
+
+    env.env_method('plot')
