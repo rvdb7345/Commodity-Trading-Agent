@@ -63,22 +63,7 @@ class BuyerEnvironment(gym.Env):
 
 
     def _next_observation(self):
-        # Get the data points for the last 5 weeks and scale to between 0-1
-        # print(self.df)
-        #
-        # print(self.df.iloc[1: 10])
-        #
-        # print(list(range(self.current_step, self.current_step + self.lookback_period)))
-        # print([self.current_step, self.current_step + \
-        #                                    self.lookback_period])
-        #
-        #
-        #
-        # print(len(self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period].values))
-        # print(self.df.iloc[self.current_step: self.current_step +
-        #                                    self.lookback_period].values)
-
+        # Get the data points for the last 'look_back' weeks and scale to between 0-1
         frame = {'time_series':[
             self.df.iloc[self.current_step: self.current_step +
                                            self.lookback_period, :]['y'].values / MAX_PRODUCT_PRICE,
