@@ -12,6 +12,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3 import PPO
 from gym import spaces
 from gym.wrappers import FlattenObservation
+from sb3_contrib import RecurrentPPO
 
 MAX_ACCOUNT_BALANCE = 2147483647
 MAX_NUM_PRODUCT = 2147483647
@@ -213,7 +214,11 @@ if __name__ == '__main__':
 
     # The algorithms require a vectorized environment to run
     env = DummyVecEnv([lambda: FlattenObservation(BuyerEnvironment(df, properties))])
-    model = PPO("MlpPolicy", env, verbose=20)
+
+    # specify the model used for learning a policy
+    # model = RecurrentPPO("MlpLstmPolicy", env, verbose=20)
+    model = PPO('MlpPolicy', env, verbose=20)
+
 
     # train model
     model.learn(total_timesteps=40000)
