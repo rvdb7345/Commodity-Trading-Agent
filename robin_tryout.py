@@ -10,7 +10,7 @@ import random
 import numpy as np
 import datetime as dt
 import pandas as pd
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, colors
 
 from stable_baselines3.sac.policies import MlpPolicy
 from stable_baselines3.common.vec_env import DummyVecEnv
@@ -32,7 +32,7 @@ class BuyerEnvironment(gym.Env):
     """A stock trading environment for OpenAI gym"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, df: pd.DataFrame, properties: dict, ts_feature_names: list):
+    def __init__(self, df: pd.DataFrame, properties: dict, ts_feature_names: list, save_results=False):
         """Initiate buyer environment, creating the observation and action spaces.
 
         Args:
@@ -64,9 +64,9 @@ class BuyerEnvironment(gym.Env):
         self.consumption_rate = properties['consumption_rate']
         self.storage_cost = properties['storage_cost']
         self.cash_inflow = properties['cash_inflow']
-        self.buy_tracker = np.zeros((100000, 2))
         self.counter = 0
         self.reward = []
+        self.save_results = save_results
 
     def reset(self) -> dict:
         """Reset the state of the environment to an initial state.
@@ -78,12 +78,16 @@ class BuyerEnvironment(gym.Env):
         self.current_inventory = self.min_inventory_threshold * 2
         self.cost_basis = 0
         self.total_spent_value = 0
-        self.reward_tracker = np.zeros((100000, 2))
-        self.buy_tracker = np.zeros((100000, 2))
         self.counter = 0
 
         # Set the current step to a random point within the data frame
         self.current_step = random.randint(0, len(self.df.loc[:, 'y'].values) - (self.lookback_period + 1))
+
+        if self.save_results:
+            self.reward_tracker = np.zeros((100000, 2))
+            self.buy_tracker = np.zeros((100000, 2))
+            self.inventory_tracker = np.zeros((100000, 2))
+
         return self._next_observation()
 
     def _next_observation(self) -> dict:
@@ -149,7 +153,7 @@ class BuyerEnvironment(gym.Env):
 
         # penalise negative inventory
         if self.current_inventory < 0:
-            reward -= 10
+            reward -= 100
         
         # penalise buys too large for storage or cash
         if action > self.cash_buy_limit or action > self.storage_buy_limit:
@@ -168,15 +172,20 @@ class BuyerEnvironment(gym.Env):
         # done = True if self.current_inventory < 0 else False  # TODO: change
         done = False
 
-        # if trackers too small, add rows
-        if self.counter == self.buy_tracker.shape[1]:
-            self.buy_tracker = np.vstack([self.buy_tracker, np.zeros(self.buy_tracker.shape)])
-        if self.counter == self.reward_tracker.shape[1]:
-            self.reward_tracker = np.vstack([self.reward_tracker, np.zeros(self.reward_tracker.shape)])
 
-        # track the buys & rewards at every step
-        self.buy_tracker[self.counter] = np.array([self.current_step, action[0]])
-        self.reward_tracker[self.counter] = np.array([self.current_step, reward])
+        if self.save_results:
+            # if trackers too small, add rows
+            if self.counter == self.buy_tracker.shape[1]:
+                self.buy_tracker = np.vstack([self.buy_tracker, np.zeros(self.buy_tracker.shape)])
+            if self.counter == self.reward_tracker.shape[1]:
+                self.reward_tracker = np.vstack([self.reward_tracker, np.zeros(self.reward_tracker.shape)])
+            if self.counter == self.inventory_tracker.shape[1]:
+                self.inventory_tracker = np.vstack([self.inventory_tracker, np.zeros(self.inventory_tracker.shape)])
+
+            # track the buys, rewards, inventory at every step
+            self.buy_tracker[self.counter] = np.array([self.current_step, action[0]])
+            self.reward_tracker[self.counter] = np.array([self.current_step, reward])
+            self.inventory_tracker[self.counter] = np.array([self.current_step, self.current_inventory])
 
         # add delay modifier to stimulate long-term behaviour
         reward *= delay_modifier
@@ -250,28 +259,55 @@ class BuyerEnvironment(gym.Env):
 
         # cut off all trailing zeros
         buys_per_step = self.buy_tracker[:self.counter]
+
         f, ax = plt.subplots()
         plt.title('Buys per time step')
         plt.xlabel('Time step')
         plt.ylabel('Price of product')
         plt.plot(buys_per_step[:, 0], df.loc[buys_per_step[:, 0], 'y'], linewidth=0.1)
         points = ax.scatter(buys_per_step[:, 0], df.loc[buys_per_step[:, 0], 'y'],
-                            marker='o', c=buys_per_step[:, 1], cmap='hot')
+                            marker='o', c=buys_per_step[:, 1], cmap='copper')
         f.colorbar(points)
 
     def plot_rewards(self):
         """Plot the behaviour of the buyer agent."""
 
+
         # cut off all trailing zeros
         reward_per_step = self.reward_tracker[:self.counter]
+        divnorm = colors.TwoSlopeNorm(vmin=min([0, min(reward_per_step[:, 0])]), vcenter=0, vmax=max([0, max(reward_per_step[:, 0])]))
+
         f, ax = plt.subplots()
         plt.title('reward per time step')
         plt.xlabel('Time step')
         plt.ylabel('Price of product')
         plt.plot(reward_per_step[:, 0], df.loc[reward_per_step[:, 0], 'y'], linewidth=0.1)
         points = ax.scatter(reward_per_step[:, 0], df.loc[reward_per_step[:, 0], 'y'],
-                            marker='o', c=reward_per_step[:, 1], cmap='RdYlGn')
+                            marker='o', c=reward_per_step[:, 1], cmap='RdYlGn', norm=divnorm)
         f.colorbar(points)
+
+    def plot_inventory(self):
+        """Plot the behaviour of the buyer agent."""
+
+
+
+        # cut off all trailing zeros
+        inventory_per_step = self.inventory_tracker[:self.counter]
+        divnorm = colors.TwoSlopeNorm(vmin=min([0, min(inventory_per_step[:, 0])]), vcenter=0, vmax=max([0,max(inventory_per_step[:, 0])]))
+
+        f, ax = plt.subplots()
+        plt.title('Inventory per time step')
+        plt.xlabel('Time step')
+        plt.ylabel('Price of product')
+        plt.plot(inventory_per_step[:, 0], df.loc[inventory_per_step[:, 0], 'y'], linewidth=0.1)
+        points = ax.scatter(inventory_per_step[:, 0], df.loc[inventory_per_step[:, 0], 'y'],
+                            marker='o', c=inventory_per_step[:, 1], cmap='RdYlGn', norm=divnorm)
+        f.colorbar(points)
+
+    def set_saving(self, saving_mode=False):
+        """Turn saving on or off."""
+        self.save_results = saving_mode
+
 
 if __name__ == '__main__':
 
@@ -285,7 +321,7 @@ if __name__ == '__main__':
         'storage_capacity': 40000,
         'min_inventory_threshold': 4000,
         'consumption_rate': 3000,
-        'storage_cost': 0.1,
+        'storage_cost': 0.2,
         'cash_inflow': 6000000
     }
 
@@ -298,12 +334,13 @@ if __name__ == '__main__':
 
     # specify the model used for learning a policy
     # model = RecurrentPPO("MlpLstmPolicy", env, verbose=20)
-    model = PPO('MlpPolicy', env, verbose=20, learning_rate=0.01)
+    model = PPO('MlpPolicy', env, verbose=20, learning_rate=0.001)
 
     # train model
-    model.learn(total_timesteps=50000)
+    model.learn(total_timesteps=40000)
 
     # carry out simulation
+    env.env_method('set_saving', saving_mode=True)
     obs = env.reset()
     for i in range(1000):
         action, _states = model.predict(obs)
@@ -314,5 +351,7 @@ if __name__ == '__main__':
 
     env.env_method('plot_buys')
     env.env_method('plot_rewards')
+    env.env_method('plot_inventory')
+
     plt.show()
 
