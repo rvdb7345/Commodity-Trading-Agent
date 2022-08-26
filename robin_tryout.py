@@ -4,8 +4,8 @@ Created for the R&D C7 - RL trading agent project.
 
 from typing import Union
 import gym
-import json
 import random
+import logging
 
 import numpy as np
 import datetime as dt
@@ -19,6 +19,8 @@ from gym import spaces
 from gym.wrappers import FlattenObservation
 from sb3_contrib import RecurrentPPO
 
+import utils
+
 MAX_ACCOUNT_BALANCE = 2147483647
 MAX_NUM_PRODUCT = 2147483647
 MAX_PRODUCT_PRICE = 5000
@@ -27,12 +29,13 @@ MAX_STEPS = 20000
 
 INITIAL_ACCOUNT_BALANCE = 10000000
 
+logger = logging.getLogger('logger')
 
 class BuyerEnvironment(gym.Env):
     """A stock trading environment for OpenAI gym"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, df: pd.DataFrame, properties: dict, ts_feature_names: list, save_results=False):
+    def __init__(self, args, df: pd.DataFrame, properties: dict, ts_feature_names: list, save_results=False):
         """Initiate buyer environment, creating the observation and action spaces.
 
         Args:
@@ -120,7 +123,7 @@ class BuyerEnvironment(gym.Env):
 
     def step(self, action: float) -> Union[dict, float, bool, dict]:
         """Take the next action and update observations and rewards."""
-        print('----------')
+        logger.debug("---------------")
         # Execute one time step within the environment
 
         # multiply action by 10.000 because of NN output constraints
@@ -189,7 +192,7 @@ class BuyerEnvironment(gym.Env):
 
         # add delay modifier to stimulate long-term behaviour
         reward *= delay_modifier
-        print('reward', reward)
+        logger.debug(f'reward {reward}')
         
         self.counter += 1
 
@@ -202,14 +205,14 @@ class BuyerEnvironment(gym.Env):
         current_price = self.df.loc[self.current_step, "y"]
 
         amount = action
-        print(amount)
+        logger.debug(f'action {amount}')
 
         # determine max amount of buyable product (storage and cash constraints)
         # self.cash_buy_limit = int(self.balance / current_price)
         # self.storage_buy_limit = self.storage_capacity - self.current_inventory
 
         product_bought = min([self.storage_buy_limit, self.cash_buy_limit, amount])
-        print('product bought', product_bought)
+        logger.debug(f'product bought {product_bought}')
 
         
         # calculate average buying price of previous products
@@ -217,7 +220,7 @@ class BuyerEnvironment(gym.Env):
 
         # calculate cost of current acquisition
         additional_cost = product_bought * (current_price + self.ordering_cost)
-        print('additional cost', additional_cost)
+        logger.debug(f'additional cost {additional_cost}')
 
 
         # update balance
@@ -240,8 +243,8 @@ class BuyerEnvironment(gym.Env):
         # update balance with operational costs
         self.balance += self.cash_inflow - self.storage_cost * self.current_inventory
 
-        print(f'Balance: {self.balance}')
-        print(f'current price: {current_price}')
+        logger.debug(f'balance: {self.balance}')
+        logger.debug(f'current price: {current_price}')
 
 
         
@@ -249,10 +252,10 @@ class BuyerEnvironment(gym.Env):
     def render(self, mode='human', close=False):
         """Render the environment to the screen."""
 
-        print(f'Step: {self.current_step}')
-        print(f'Balance: {self.balance}')
-        print(f'product held: {self.current_inventory}')
-        print(f'Avg cost for held product: {self.cost_basis} (Total spent value: {self.total_spent_value})')
+        logger.info(f'Step: {self.current_step}')
+        logger.info(f'Balance: {self.balance}')
+        logger.info(f'product held: {self.current_inventory}')
+        logger.info(f'Avg cost for held product: {self.cost_basis} (Total spent value: {self.total_spent_value})')
 
     def plot_buys(self):
         """Plot the behaviour of the buyer agent."""
@@ -275,7 +278,7 @@ class BuyerEnvironment(gym.Env):
 
         # cut off all trailing zeros
         reward_per_step = self.reward_tracker[:self.counter]
-        divnorm = colors.TwoSlopeNorm(vmin=min([0, min(reward_per_step[:, 0])]), vcenter=0, vmax=max([0, max(reward_per_step[:, 0])]))
+        divnorm = colors.TwoSlopeNorm(vmin=min([-0.001, min(reward_per_step[:, 0])]), vcenter=0, vmax=max([0.001, max(reward_per_step[:, 0])]))
 
         f, ax = plt.subplots()
         plt.title('reward per time step')
@@ -293,7 +296,7 @@ class BuyerEnvironment(gym.Env):
 
         # cut off all trailing zeros
         inventory_per_step = self.inventory_tracker[:self.counter]
-        divnorm = colors.TwoSlopeNorm(vmin=min([0, min(inventory_per_step[:, 0])]), vcenter=0, vmax=max([0,max(inventory_per_step[:, 0])]))
+        divnorm = colors.TwoSlopeNorm(vmin=min([-0.001, min(inventory_per_step[:, 0])]), vcenter=0, vmax=max([0.001,max(inventory_per_step[:, 0])]))
 
         f, ax = plt.subplots()
         plt.title('Inventory per time step')
@@ -310,6 +313,8 @@ class BuyerEnvironment(gym.Env):
 
 
 if __name__ == '__main__':
+    args = utils.parse_config()
+    utils.create_logger_and_set_level(args.verbose)
 
     df = pd.read_csv('./data/US_SMP_food_TA.csv', index_col=0).iloc[69:].reset_index(drop=True)
     df = df.sort_values('ds')
@@ -330,7 +335,7 @@ if __name__ == '__main__':
          "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band", "momentum1", "kalman"]
 
     # The algorithms require a vectorized environment to run
-    env = DummyVecEnv([lambda: FlattenObservation(BuyerEnvironment(df, properties, ts_feature_names))])
+    env = DummyVecEnv([lambda: FlattenObservation(BuyerEnvironment(args, df, properties, ts_feature_names))])
 
     # specify the model used for learning a policy
     # model = RecurrentPPO("MlpLstmPolicy", env, verbose=20)
