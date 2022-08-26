@@ -6,8 +6,6 @@ certifi==2022.6.15
 charset-normalizer==2.1.1
 cloudpickle==2.1.0
 cycler==0.11.0
-distlib==0.3.5
-filelock==3.8.0
 flatbuffers==1.12
 fonttools==4.36.0
 gast==0.4.0
@@ -37,8 +35,6 @@ opt-einsum==3.3.0
 packaging==21.3
 pandas==1.4.3
 Pillow==9.2.0
-pipenv==2022.8.19
-platformdirs==2.5.2
 protobuf==3.19.4
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
@@ -51,7 +47,6 @@ requests==2.28.1
 requests-oauthlib==1.3.1
 rsa==4.9
 sb3-contrib==1.6.0
-scipy==1.9.0
 six==1.16.0
 stable-baselines==2.10.2
 stable-baselines3==1.6.0
@@ -64,8 +59,6 @@ termcolor==1.1.0
 torch==1.12.1
 typing_extensions==4.3.0
 urllib3==1.26.11
-virtualenv==20.16.3
-virtualenv-clone==0.5.7
 Werkzeug==2.2.2
 wrapt==1.14.1
 zipp==3.8.1
