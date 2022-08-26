@@ -112,23 +112,23 @@ class BuyerEnvironment(gym.Env):
                 self.storage_buy_limit,                
         ]}
 
-        # Append additional data and scale each value to between 0-1
-
         return frame
 
     def step(self, action: float) -> Union[dict, float, bool, dict]:
         """Take the next action and update observations and rewards."""
         print('----------')
         # Execute one time step within the environment
+
+        # multiply action by 10.000 because of NN output constraints
         action = action*10000
         self._take_action(action)
+
+        # make sure the current step does not move past the end of the ts
         self.current_step += 1
         if self.current_step > len(self.df.loc[:, 'y'].values) - self.lookback_period:
             self.current_step = 0
-        delay_modifier = (self.current_step / MAX_STEPS)
-
         
-        ## REWARD
+        ### calculate reward
         '''
         reward
         - as cheap as possible
@@ -138,49 +138,52 @@ class BuyerEnvironment(gym.Env):
         - action higher than storage/cash limit
         '''
         reward = 0
+        delay_modifier = (self.current_step / MAX_STEPS)
+
         # reward = delay_modifier*action[0]
         
         
-        # add a penalty
+        # penalise inventory below threshold
         if self.current_inventory < self.min_inventory_threshold:
-            reward += -5 #* (self.current_inventory - self.min_inventory_threshold)
+            reward += -10 #* (self.current_inventory - self.min_inventory_threshold)
 
+        # penalise negative inventory
         if self.current_inventory < 0:
             reward -= 10
         
-        # determine max amount of buyable product (storage and cash constraints)
-        current_price = self.df.loc[self.current_step, "y"]
-        self.cash_buy_limit = int(self.balance / current_price)
-        self.storage_buy_limit = self.storage_capacity - self.current_inventory
+        # penalise buys too large for storage or cash
         if action > self.cash_buy_limit or action > self.storage_buy_limit:
             reward -= 5
-        
+
+        # reward buying at the correct price point
+        current_price = self.df.loc[self.current_step, "y"]
         next_week_price = self.df.loc[self.current_step + 1, "y"]
         price_profit = current_price - next_week_price
         reward += price_profit * .1
-        print('price profit', price_profit * .1)
 
+        # generate next observation
         obs = self._next_observation()
-        done = False  # TODO: change
 
-        # print(self.buy_tracker, self.buy_tracker[self.counter])
-        # print([self.current_step, action])
+        # stop simulation if inventory goes negative
+        # done = True if self.current_inventory < 0 else False  # TODO: change
+        done = False
 
-        # if tracker too small, add rows
+        # if trackers too small, add rows
         if self.counter == self.buy_tracker.shape[1]:
             self.buy_tracker = np.vstack([self.buy_tracker, np.zeros(self.buy_tracker.shape)])
-
-        # track the buys at every step
-        self.buy_tracker[self.counter] = np.array([self.current_step, action[0]])
-
         if self.counter == self.reward_tracker.shape[1]:
             self.reward_tracker = np.vstack([self.reward_tracker, np.zeros(self.reward_tracker.shape)])
-            
+
+        # track the buys & rewards at every step
+        self.buy_tracker[self.counter] = np.array([self.current_step, action[0]])
         self.reward_tracker[self.counter] = np.array([self.current_step, reward])
 
+        # add delay modifier to stimulate long-term behaviour
+        reward *= delay_modifier
         print('reward', reward)
         
         self.counter += 1
+
         return obs, reward, done, {}
 
     def _take_action(self, action: float):
@@ -193,11 +196,8 @@ class BuyerEnvironment(gym.Env):
         print(amount)
 
         # determine max amount of buyable product (storage and cash constraints)
-        self.cash_buy_limit = int(self.balance / current_price)
-        print('cash buy liit', self.cash_buy_limit)
-        self.storage_buy_limit = self.storage_capacity - self.current_inventory
-        print('current inventory', self.current_inventory)
-        print('storage buy limit', self.storage_buy_limit)
+        # self.cash_buy_limit = int(self.balance / current_price)
+        # self.storage_buy_limit = self.storage_capacity - self.current_inventory
 
         product_bought = min([self.storage_buy_limit, self.cash_buy_limit, amount])
         print('product bought', product_bought)
@@ -215,7 +215,7 @@ class BuyerEnvironment(gym.Env):
         self.balance -= additional_cost
 
         # calculate average buying price of all products
-        self.cost_basis = (prev_cost + additional_cost) / (self.current_inventory + product_bought)
+        # self.cost_basis = (prev_cost + additional_cost) / (self.current_inventory + product_bought)
 
         # update inventory
         self.current_inventory += product_bought
@@ -224,9 +224,6 @@ class BuyerEnvironment(gym.Env):
 
         if self.current_inventory == 0:
             self.cost_basis = 0
-
-        # if self.current_inventory < 0:
-        #     self.current_inventory = 0
 
         # update inventory with spoiled and used product
         self.current_inventory -= self.consumption_rate
