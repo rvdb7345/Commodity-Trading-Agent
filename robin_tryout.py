@@ -1,7 +1,7 @@
 """File containing the first draft of the Buyer Agent.
 Created for the R&D C7 - RL trading agent project.
 """
-
+import time
 from typing import Union
 import gym
 import random
@@ -172,7 +172,7 @@ class BuyerEnvironment(gym.Env):
         obs = self._next_observation()
 
         # stop simulation if inventory goes negative
-        # done = True if self.current_inventory < 0 else False  # TODO: change
+        # done = True if self.current_inventory < 0 else False  # TODO: set end signal
         done = False
 
 
@@ -188,7 +188,7 @@ class BuyerEnvironment(gym.Env):
             # track the buys, rewards, inventory at every step
             self.buy_tracker[self.counter] = np.array([self.current_step, action[0]])
             self.reward_tracker[self.counter] = np.array([self.current_step, reward])
-            self.inventory_tracker[self.counter] = np.array([self.current_step, self.current_inventory])
+            self.inventory_tracker[self.counter] = np.array([self.current_step, self.current_inventory[0]])
 
         # add delay modifier to stimulate long-term behaviour
         reward *= delay_modifier
@@ -208,9 +208,6 @@ class BuyerEnvironment(gym.Env):
         logger.debug(f'action {amount}')
 
         # determine max amount of buyable product (storage and cash constraints)
-        # self.cash_buy_limit = int(self.balance / current_price)
-        # self.storage_buy_limit = self.storage_capacity - self.current_inventory
-
         product_bought = min([self.storage_buy_limit, self.cash_buy_limit, amount])
         logger.debug(f'product bought {product_bought}')
 
@@ -246,9 +243,6 @@ class BuyerEnvironment(gym.Env):
         logger.debug(f'balance: {self.balance}')
         logger.debug(f'current price: {current_price}')
 
-
-        
-
     def render(self, mode='human', close=False):
         """Render the environment to the screen."""
 
@@ -275,10 +269,10 @@ class BuyerEnvironment(gym.Env):
     def plot_rewards(self):
         """Plot the behaviour of the buyer agent."""
 
-
         # cut off all trailing zeros
         reward_per_step = self.reward_tracker[:self.counter]
-        divnorm = colors.TwoSlopeNorm(vmin=min([-0.001, min(reward_per_step[:, 0])]), vcenter=0, vmax=max([0.001, max(reward_per_step[:, 0])]))
+        divnorm = colors.TwoSlopeNorm(vmin=min([-0.001, min(reward_per_step[:, 0])]), vcenter=0,
+                                      vmax=max([0.001, max(reward_per_step[:, 0])]))
 
         f, ax = plt.subplots()
         plt.title('reward per time step')
@@ -292,11 +286,10 @@ class BuyerEnvironment(gym.Env):
     def plot_inventory(self):
         """Plot the behaviour of the buyer agent."""
 
-
-
         # cut off all trailing zeros
         inventory_per_step = self.inventory_tracker[:self.counter]
-        divnorm = colors.TwoSlopeNorm(vmin=min([-0.001, min(inventory_per_step[:, 0])]), vcenter=0, vmax=max([0.001,max(inventory_per_step[:, 0])]))
+        divnorm = colors.TwoSlopeNorm(vmin=min([-0.001, min(inventory_per_step[:, 0])]), vcenter=0,
+                                      vmax=max([0.001, max(inventory_per_step[:, 0])]))
 
         f, ax = plt.subplots()
         plt.title('Inventory per time step')
@@ -327,7 +320,7 @@ if __name__ == '__main__':
         'min_inventory_threshold': 4000,
         'consumption_rate': 3000,
         'storage_cost': 0.2,
-        'cash_inflow': 6000000
+        'cash_inflow': 8000000
     }
 
     ts_feature_names = \
@@ -335,14 +328,18 @@ if __name__ == '__main__':
          "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band", "momentum1", "kalman"]
 
     # The algorithms require a vectorized environment to run
-    env = DummyVecEnv([lambda: FlattenObservation(BuyerEnvironment(args, df, properties, ts_feature_names))])
+    env = DummyVecEnv([lambda: BuyerEnvironment(args, df, properties, ts_feature_names)])
 
     # specify the model used for learning a policy
-    # model = RecurrentPPO("MlpLstmPolicy", env, verbose=20)
-    model = PPO('MlpPolicy', env, verbose=20, learning_rate=0.001)
+    # model = PPO("MultiInputLstmPolicy", env, verbose=200)
+    model = PPO('MultiInputPolicy', env, verbose=20, learning_rate=0.001)
 
     # train model
+    start_training_time = time.time()
     model.learn(total_timesteps=40000)
+    end_training_time = time.time()
+
+    logger.info(f'Total time to train: {end_training_time - start_training_time:.2f} seconds.')
 
     # carry out simulation
     env.env_method('set_saving', saving_mode=True)
