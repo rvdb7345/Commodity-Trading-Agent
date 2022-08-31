@@ -63,7 +63,7 @@ class BuyerEnvironment(gym.Env):
         self.save_results = save_results
 
         # parameters
-        self.action_scaler = properties['upper_buy_limit']
+        self.upper_buy_limit = properties['upper_buy_limit']
         self.price_diff_scaler = 10 # price difference on range [0, 50]
 
 
@@ -98,7 +98,6 @@ class BuyerEnvironment(gym.Env):
     
     def baseline_reset(self) -> dict:
         """Prepare class for baseline simulation."""
-    
         self.current_step = self.start_step
         self.reset_values()
 
@@ -109,7 +108,6 @@ class BuyerEnvironment(gym.Env):
         Returns:
             Next inputs for model
         """
-
         current_price = self.df.loc[self.current_step, "y"]
         self.cash_buy_limit = int(self.balance / current_price)
         self.storage_buy_limit = self.storage_capacity - self.current_inventory['amount'].sum()
@@ -132,21 +130,18 @@ class BuyerEnvironment(gym.Env):
         return frame
 
     def step(self, action: float) -> Union[dict, float, bool, dict]:
-        """Take the next action and update observations and rewards."""
+        """Take the next action and update state and rewards."""
         logger.debug("---------------")
-        # Execute one time step within the environment
         logger.debug(f'Current step: {self.current_step}')
 
-        # multiply action by 10.000 because of NN output constraints
-        action = action[0]*self.action_scaler
+        # multiply action [-1,1] by upper_buy_limit factor (works better with NN model)
+        action = action[0]*self.upper_buy_limit
         self._take_action(action)
 
         # make sure the current step does not move past the end of the ts
         self.current_step += 1
         if self.current_step > len(self.df.loc[:, 'y'].values) - self.lookback_period:
             self.current_step = 0
-        
-        ### calculate reward
         '''
         reward
         - as cheap as possible
@@ -189,14 +184,14 @@ class BuyerEnvironment(gym.Env):
         next_week_price = self.df.loc[self.current_step + 1, "y"]
         price_profit = next_week_price - current_price
 
-        reward += price_profit * action / self.action_scaler / self.price_diff_scaler
+        reward += price_profit * action / self.upper_buy_limit / self.price_diff_scaler
 
         # punishment for missed price opportunity
-        buy_amount_weight = (0.3 - action / self.action_scaler)
-        reward -= price_profit / (1 + action / self.action_scaler) / self.price_diff_scaler * buy_amount_weight
+        buy_amount_weight = (0.3 - action / self.upper_buy_limit)
+        reward -= price_profit / (1 + action / self.upper_buy_limit) / self.price_diff_scaler * buy_amount_weight
 
-        logger.debug(f'The price profit reward: {price_profit * action / self.action_scaler / self.price_diff_scaler}')
-        logger.debug(f'The missed opportunity reward: {-price_profit / (1 + action / self.action_scaler) / self.price_diff_scaler * buy_amount_weight}')
+        logger.debug(f'The price profit reward: {price_profit * action / self.upper_buy_limit / self.price_diff_scaler}')
+        logger.debug(f'The missed opportunity reward: {-price_profit / (1 + action / self.upper_buy_limit) / self.price_diff_scaler * buy_amount_weight}')
 
         # generate next observation
         obs = self._next_observation()
@@ -293,13 +288,13 @@ class BuyerEnvironment(gym.Env):
 
     def render(self, mode='human', close=False):
         """Render the environment to the screen."""
-
         logger.info(f'Step: {self.current_step}')
         logger.info(f'Balance: {self.balance}')
         logger.info(f'product held: {self.current_inventory["amount"].sum()}')
         logger.info(f'Total spent value: {self.total_spent_value}')
 
     def return_results(self):
+        """Return end results of a simulation."""
         current_inventory = self.current_inventory["amount"].sum()
         total_worth = self.balance + current_inventory * self.df.loc[self.current_step, "y"]
         return total_worth, self.balance, current_inventory, self.total_spent_value
