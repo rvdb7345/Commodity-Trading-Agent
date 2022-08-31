@@ -12,15 +12,6 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
-        },
-        {
-            "name": "agent-bb baseline debug",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/agent_butter_buyer_baseline.py",
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
-            "justMyCode": false,
         }
     ]
 }
