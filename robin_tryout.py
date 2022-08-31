@@ -294,10 +294,10 @@ class BuyerEnvironment(gym.Env):
 
         # cut off all trailing zeros
         reward_per_step = self.reward_tracker[:self.counter]
-        print('max reward: ', max([0.001, max(reward_per_step[:, 0])]))
-        print('min reward: ', min([-0.001, min(reward_per_step[:, 0])]))
-        divnorm_reward = colors.TwoSlopeNorm(vmin=min([-0.001, min(reward_per_step[:, 0])]), vcenter=0,
-                                      vmax=max([0.001, max(reward_per_step[:, 0])]))
+        # print('max reward: ', max([0.001, max(reward_per_step[:, 0])]))
+        # print('min reward: ', min([-0.001, min(reward_per_step[:, 0])]))
+        # divnorm_reward = colors.TwoSlopeNorm(vmin=min([-0.001, min(reward_per_step[:, 0])]), vcenter=0,
+        #                               vmax=max([0.001, max(reward_per_step[:, 0])]))
         divnorm_reward = colors.TwoSlopeNorm(vmin=-10, vcenter=0,
                                       vmax=10)
         f_reward, ax_reward = plt.subplots()
@@ -314,8 +314,8 @@ class BuyerEnvironment(gym.Env):
 
         # cut off all trailing zeros
         inventory_per_step = self.inventory_tracker[:self.counter]
-        print('max inven: ', max([0.001, max(inventory_per_step[:, 0])]))
-        print('min inven: ', min([-0.001, min(inventory_per_step[:, 0])]))
+        # print('max inven: ', max([0.001, max(inventory_per_step[:, 0])]))
+        # print('min inven: ', min([-0.001, min(inventory_per_step[:, 0])]))
         # divnorm_inventory = colors.TwoSlopeNorm(vmin=min([-0.001, min(inventory_per_step[:, 0])]), vcenter=0,
         #                               vmax=max([0.001, max(inventory_per_step[:, 0])]))
         # divnorm_inventory = colors.TwoSlopeNorm(vmin=0,
