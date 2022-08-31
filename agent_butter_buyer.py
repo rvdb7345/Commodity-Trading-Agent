@@ -72,8 +72,8 @@ class BuyerEnvironment(gym.Env):
         self.save_results = save_results
 
         # parameters
-        self.action_scaler = 10000
-        self.price_diff_scaler = 10
+        self.action_scaler = properties['max_buy_amount']
+        self.price_diff_scaler = 10 # price difference on range [0, 50]
 
 
     def reset(self) -> dict:
@@ -189,11 +189,11 @@ class BuyerEnvironment(gym.Env):
         reward += price_profit * action / self.action_scaler / self.price_diff_scaler
 
         # punishment for missed price opportunity
-        buy_amount_weight = (1 - action / self.action_scaler)
+        buy_amount_weight = (0.3 - action / self.action_scaler)
         reward -= price_profit / (1 + action / self.action_scaler) / self.price_diff_scaler * buy_amount_weight
 
         logger.debug(f'The price profit reward: {price_profit * action / self.action_scaler / self.price_diff_scaler}')
-        logger.debug(f'The missed opportunity reward: {-price_profit / (1 + action / self.action_scaler) / self.price_diff_scaler}')
+        logger.debug(f'The missed opportunity reward: {-price_profit / (1 + action / self.action_scaler) / self.price_diff_scaler * buy_amount_weight}')
 
         # generate next observation
         obs = self._next_observation()
@@ -374,7 +374,8 @@ if __name__ == '__main__':
         'min_inventory_threshold': 4000,
         'consumption_rate': 3000,
         'storage_cost': 0.2,
-        'cash_inflow': 8000000
+        'cash_inflow': 8000000,
+        'max_buy_amount': 10000
     }
 
     ts_feature_names = \
