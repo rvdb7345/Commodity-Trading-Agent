@@ -8,7 +8,6 @@ import random
 import logging
 
 import numpy as np
-import datetime as dt
 import pandas as pd
 from matplotlib import pyplot as plt, colors
 
@@ -21,10 +20,6 @@ from sb3_contrib import RecurrentPPO
 
 import utils
 
-MAX_ACCOUNT_BALANCE = 2147483647
-MAX_NUM_PRODUCT = 2147483647
-MAX_PRODUCT_PRICE = 5000
-MAX_OPEN_POSITIONS = 5
 MAX_STEPS = 20000
 
 INITIAL_ACCOUNT_BALANCE = 10000000
@@ -48,7 +43,6 @@ class BuyerEnvironment(gym.Env):
         self.df = df
         self.ts_feature_names = ts_feature_names
         self.properties = properties
-        self.reward_range = (0, MAX_ACCOUNT_BALANCE)
 
         # Actions of the format Buy x%, or refrain, etc.
         self.action_space = spaces.Box(low=0, high=1, shape=(1,))
