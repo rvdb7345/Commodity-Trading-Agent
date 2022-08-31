@@ -326,7 +326,8 @@ class BuyerEnvironment(gym.Env):
         self.save_results = saving_mode
     
 def run_simulation(env, plot=False):
-    if args.plot:
+    """Run simulation of trained model."""
+    if plot:
         env.env_method('set_saving', saving_mode=True)
     
     obs = env.reset()
