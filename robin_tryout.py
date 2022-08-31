@@ -71,6 +71,11 @@ class BuyerEnvironment(gym.Env):
         self.reward = []
         self.save_results = save_results
 
+        # parameters
+        self.action_scaler = 10000
+        self.price_diff_scaler = 10
+
+
     def reset(self) -> dict:
         """Reset the state of the environment to an initial state.
 
@@ -81,9 +86,9 @@ class BuyerEnvironment(gym.Env):
 
         self.cost_basis = 0
         self.total_spent_value = 0
-        self.counter = 1
+        self.counter = 0
         self.current_inventory = pd.DataFrame(columns=['time_in_storage', 'amount'], dtype=float)
-        self.current_inventory.loc[self.counter] = [0, self.min_inventory_threshold*2]
+        self.current_inventory.loc[self.counter] = [0, self.min_inventory_threshold*6]
 
         # Set the current step to a random point within the data frame
         self.current_step = random.randint(0, len(self.df.loc[:, 'y'].values) - (self.lookback_period + 1))
@@ -127,9 +132,10 @@ class BuyerEnvironment(gym.Env):
         """Take the next action and update observations and rewards."""
         logger.debug("---------------")
         # Execute one time step within the environment
+        logger.debug(f'Current step: {self.current_step}')
 
         # multiply action by 10.000 because of NN output constraints
-        action = action[0]*10000
+        action = action[0]*self.action_scaler
         self._take_action(action)
 
         # make sure the current step does not move past the end of the ts
@@ -156,33 +162,45 @@ class BuyerEnvironment(gym.Env):
                                                             self.product_shelf_life]
 
         # penalise for wastage
-        reward -= sum_spoiled_product
+        reward -= sum_spoiled_product / 1000
+        logger.debug(f'The spoiled product reward: {-sum_spoiled_product / 1000}')
 
         # penalise inventory below threshold
         if self.current_inventory['amount'].sum() < self.min_inventory_threshold:
-            reward += -10000000 #* (self.current_inventory - self.min_inventory_threshold)
+            reward -= 1 #* (self.current_inventory - self.min_inventory_threshold)
+            logger.debug('Under min inventory: -1')
 
         # penalise negative inventory
         if self.current_inventory['amount'].sum() < 0:
-            reward -= 10000000
+            reward -= 1
+            logger.debug('Under 0 inventory: -1')
+
         
         # penalise buys too large for storage or cash
         if action > self.cash_buy_limit or action > self.storage_buy_limit:
-            reward -= 5
+            reward -= 1
+            logger.debug('Outside buy limits: -1')
 
         # reward buying at the correct price point
         current_price = self.df.loc[self.current_step, "y"]
         next_week_price = self.df.loc[self.current_step + 1, "y"]
-        price_profit = current_price - next_week_price
-        reward += price_profit * .1
+        price_profit = next_week_price - current_price
+
+        reward += price_profit * action / self.action_scaler / self.price_diff_scaler
+
+        # punishment for missed price opportunity
+        buy_amount_weight = (1 - action / self.action_scaler)
+        reward -= price_profit / (1 + action / self.action_scaler) / self.price_diff_scaler * buy_amount_weight
+
+        logger.debug(f'The price profit reward: {price_profit * action / self.action_scaler / self.price_diff_scaler}')
+        logger.debug(f'The missed opportunity reward: {-price_profit / (1 + action / self.action_scaler) / self.price_diff_scaler}')
 
         # generate next observation
         obs = self._next_observation()
 
         # stop simulation if inventory goes negative
-        done = True if self.current_inventory['amount'].sum() == 0 else False  # TODO: set end signal
-        # done = False
-
+        # done = True if self.current_inventory['amount'].sum() == 0 else False  # TODO: set end signal
+        done = False
 
         if self.save_results:
             # if trackers too small, add rows
@@ -199,10 +217,14 @@ class BuyerEnvironment(gym.Env):
             self.inventory_tracker[self.counter] = np.array([self.current_step, self.current_inventory['amount'].sum()])
 
         # add delay modifier to stimulate long-term behaviour
-        reward *= delay_modifier
+        # reward *= delay_modifier
+        # logger.debug((f'The delay modifier {delay_modifier}'))
         logger.debug(f'reward {reward}')
         
         self.counter += 1
+
+        self.current_inventory['time_in_storage'] = self.current_inventory['time_in_storage'] + 1
+        logger.debug(f'The inventory: {self.current_inventory["amount"].sum()}')
 
         return obs, reward, done, {}
 
@@ -321,6 +343,8 @@ class BuyerEnvironment(gym.Env):
         # divnorm_inventory = colors.TwoSlopeNorm(vmin=0,
         #                               vmax=self.storage_capacity)
 
+        logger.debug(f'The inventory: \n {self.inventory_tracker}')
+
         f_inventory, ax_inventory = plt.subplots()
         plt.title('Inventory per time step')
         plt.xlabel('Time step')
@@ -344,7 +368,7 @@ if __name__ == '__main__':
 
     # define buyer properties
     properties = {
-        'product_shelf_life': 8,
+        'product_shelf_life': 13,
         'ordering_cost': 0.1,
         'storage_capacity': 40000,
         'min_inventory_threshold': 4000,
