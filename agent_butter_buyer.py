@@ -270,7 +270,7 @@ class BuyerEnvironment(gym.Env):
 
         # update inventory
         if not product_bought == 0:
-            self.current_inventory.loc[self.counter] = [0, product_bought]
+            self.current_inventory.loc[self.counter + 1] = [0, product_bought]
 
         self.total_spent_value += additional_cost
 
