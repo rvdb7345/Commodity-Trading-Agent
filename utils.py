@@ -2,6 +2,10 @@ import argparse
 import logging
 from types import SimpleNamespace
 
+
+logging.getLogger('matplotlib').setLevel(logging.ERROR)
+
+
 def parse_config():
     """Config parser."""
     parser = argparse.ArgumentParser()
@@ -9,6 +13,10 @@ def parse_config():
                         help='Print extra info, levels: debug, info, warning, critical, error')
     parser.add_argument('--plot', '-p', action='store_true', default=False, 
                         help='plot results')
+    parser.add_argument('--trainsteps', '-t', default=40000, type=int, 
+                        help='training steps')
+    parser.add_argument('--simsteps', '-s', default=1000, type=int,
+                        help='simulation steps')
     args = vars(parser.parse_known_args()[0])
     args = SimpleNamespace(**args)
     return args
@@ -28,6 +36,8 @@ def create_logger_and_set_level(logging_level):
     else:
         logging.warning(f'Verbosity level {logging_level} not recognised, defaulted to info.')
         verbosity = logging.INFO
+
+    logging.getLogger('matplotlib').setLevel(logging.ERROR)
 
     logging.basicConfig(
         level=verbosity,
