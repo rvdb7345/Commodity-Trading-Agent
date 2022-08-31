@@ -1,9 +1,12 @@
 import argparse
 import logging
+import time
 from types import SimpleNamespace
+from matplotlib import pyplot as plt, colors
 
 
 logging.getLogger('matplotlib').setLevel(logging.ERROR)
+logger = logging.getLogger('logger')
 
 
 def parse_config():
@@ -43,3 +46,15 @@ def create_logger_and_set_level(logging_level):
         level=verbosity,
         format='(%(asctime)s.%(msecs)03d): %(levelname)-8s %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S')
+    
+def run_and_track_runtime(func, **args):
+    start_time = time.time()
+    func(**args)
+    end_time = time.time
+    logger.info(f'Total time to train: {time.time() - start_time:.2f} seconds.')
+    
+def plot_results(env):
+    env.env_method('plot_measure', measure='buys')
+    env.env_method('plot_measure', measure='reward')
+    env.env_method('plot_measure', measure='inventory')
+    plt.show()
