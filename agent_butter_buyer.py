@@ -76,12 +76,8 @@ class BuyerEnvironment(gym.Env):
         self.price_diff_scaler = 10 # price difference on range [0, 50]
 
 
-    def reset(self) -> dict:
-        """Reset the state of the environment to an initial state.
-
-        Returns:
-            Initial observation to start with
-        """
+    def reset_values(self):
+        """Reset simulation values to starting values."""
         self.balance = INITIAL_ACCOUNT_BALANCE
 
         self.cost_basis = 0
@@ -90,15 +86,31 @@ class BuyerEnvironment(gym.Env):
         self.current_inventory = pd.DataFrame(columns=['time_in_storage', 'amount'], dtype=float)
         self.current_inventory.loc[self.counter] = [0, self.min_inventory_threshold*6]
 
-        # Set the current step to a random point within the data frame
-        self.current_step = random.randint(0, len(self.df.loc[:, 'y'].values) - (self.lookback_period + 1))
-
         if self.save_results:
             self.reward_tracker = np.zeros((100000, 2))
             self.buy_tracker = np.zeros((100000, 2))
             self.inventory_tracker = np.zeros((100000, 2))
+            
+    def reset(self) -> dict:
+        """Reset the state of the environment to an initial state.
+
+        Returns:
+            Initial observation to start with
+        """
+        self.reset_values()
+        
+        # Set the current step to a random point within the data frame
+        self.current_step = random.randint(0, len(self.df.loc[:, 'y'].values) - (self.lookback_period + 1))
+        self.start_step = self.current_step
 
         return self._next_observation()
+    
+    def baseline_reset(self) -> dict:
+        """Prepare class for baseline simulation."""
+    
+        self.current_step = self.start_step
+        self.reset_values()
+
 
     def _next_observation(self) -> dict:
         """Create observation dictionary with all features.
@@ -294,8 +306,13 @@ class BuyerEnvironment(gym.Env):
         logger.info(f'Step: {self.current_step}')
         logger.info(f'Balance: {self.balance}')
         logger.info(f'product held: {self.current_inventory["amount"].sum()}')
-        logger.info(f'Avg cost for held product: {self.cost_basis} (Total spent value: {self.total_spent_value})')
+        logger.info(f'Total spent value: {self.total_spent_value}')
 
+    def return_results(self):
+        current_inventory = self.current_inventory["amount"].sum()
+        total_worth = self.balance + current_inventory * self.df.loc[self.current_step, "y"]
+        return total_worth, self.balance, current_inventory, self.total_spent_value
+        
     def plot_buys(self):
         """Plot the behaviour of the buyer agent."""
 
@@ -343,8 +360,6 @@ class BuyerEnvironment(gym.Env):
         # divnorm_inventory = colors.TwoSlopeNorm(vmin=0,
         #                               vmax=self.storage_capacity)
 
-        logger.debug(f'The inventory: \n {self.inventory_tracker}')
-
         f_inventory, ax_inventory = plt.subplots()
         plt.title('Inventory per time step')
         plt.xlabel('Time step')
@@ -357,6 +372,15 @@ class BuyerEnvironment(gym.Env):
     def set_saving(self, saving_mode=False):
         """Turn saving on or off."""
         self.save_results = saving_mode
+    
+    
+def run_baseline(env, action, steps=1000):
+    """Run baseline simulation."""
+    for i in range(steps):
+        obs, rewards, done, info = env.step([[action]])
+
+    logger.info("Baseline final results")
+    env.render()
 
 
 if __name__ == '__main__':
@@ -391,7 +415,7 @@ if __name__ == '__main__':
 
     # train model
     start_training_time = time.time()
-    model.learn(total_timesteps=40000)
+    model.learn(total_timesteps=args.trainsteps)
     end_training_time = time.time()
 
     logger.info(f'Total time to train: {end_training_time - start_training_time:.2f} seconds.')
@@ -399,16 +423,31 @@ if __name__ == '__main__':
     # carry out simulation
     env.env_method('set_saving', saving_mode=True)
     obs = env.reset()
-    for i in range(1000):
+    for i in range(args.simsteps):
         action, _states = model.predict(obs)
         obs, rewards, done, info = env.step(action)
 
         if i % 200 == 0:
             env.render()
+    
+    logger.info("Model final results")
+    env.render()
+    total_worth, balance, current_inventory, total_spent_value = env.env_method('return_results')[0]
 
-    env.env_method('plot_buys')
-    env.env_method('plot_rewards')
-    env.env_method('plot_inventory')
-
-    plt.show()
+    
+    if args.plot:
+        env.env_method('plot_buys')
+        env.env_method('plot_rewards')
+        env.env_method('plot_inventory')
+        plt.show()
+    
+    # run baseline: buying consumption rate
+    obs = env.env_method('baseline_reset')
+    logger.setLevel(logging.INFO)
+    run_baseline(env=env, action=properties['consumption_rate']/properties['max_buy_amount'], steps=args.simsteps)
+    b_total_worth, b_balance, b_current_inventory, b_total_spent_value = env.env_method('return_results')[0]
+    
+    print(f'Total worth (incl inventory) improvement over baseline: {(total_worth-b_total_worth)/b_total_worth*100}%')
+    
+    
 
