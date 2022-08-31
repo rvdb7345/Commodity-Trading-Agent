@@ -1,7 +1,6 @@
 """File containing the first draft of the Buyer Agent.
 Created for the R&D C7 - RL trading agent project.
 """
-import time
 from typing import Union
 import gym
 import random
@@ -20,11 +19,10 @@ from sb3_contrib import RecurrentPPO
 
 import utils
 
-MAX_STEPS = 20000
-
-INITIAL_ACCOUNT_BALANCE = 10000000
-
 logger = logging.getLogger('logger')
+
+MAX_STEPS = 20000
+INITIAL_ACCOUNT_BALANCE = 10000000
 
 class BuyerEnvironment(gym.Env):
     """A stock trading environment for OpenAI gym"""
@@ -38,7 +36,6 @@ class BuyerEnvironment(gym.Env):
             properties: values dictating the properties of the buyer environment
             ts_feature_names: names of the time series features to use
         """
-
         super(BuyerEnvironment, self).__init__()
         self.df = df
         self.ts_feature_names = ts_feature_names
@@ -66,7 +63,7 @@ class BuyerEnvironment(gym.Env):
         self.save_results = save_results
 
         # parameters
-        self.action_scaler = properties['max_buy_amount']
+        self.action_scaler = properties['upper_buy_limit']
         self.price_diff_scaler = 10 # price difference on range [0, 50]
 
 
@@ -307,83 +304,73 @@ class BuyerEnvironment(gym.Env):
         total_worth = self.balance + current_inventory * self.df.loc[self.current_step, "y"]
         return total_worth, self.balance, current_inventory, self.total_spent_value
         
-    def plot_buys(self):
+    def plot_measure(self, measure='buys'):
         """Plot the behaviour of the buyer agent."""
-
+        if measure.lower() == 'buys':
+            measure_per_step = self.buy_tracker[:self.counter]
+        if measure.lower() == 'reward':
+            measure_per_step = self.reward_tracker
+        if measure.lower() == 'inventory':
+            measure_per_step = self.inventory_tracker
+        
         # cut off all trailing zeros
-        buys_per_step = self.buy_tracker[:self.counter]
-
+        self.buy_tracker[:self.counter]
+        
         f, ax = plt.subplots()
-        plt.title('Buys per time step')
+        plt.title(f'{measure} per time step')
         plt.xlabel('Time step')
         plt.ylabel('Price of product')
-        plt.plot(buys_per_step[:, 0], df.loc[buys_per_step[:, 0], 'y'], linewidth=0.1)
-        points = ax.scatter(buys_per_step[:, 0], df.loc[buys_per_step[:, 0], 'y'],
-                            marker='o', c=buys_per_step[:, 1], cmap='copper')
+        plt.plot(measure_per_step[:, 0], df.loc[measure_per_step[:, 0], 'y'], linewidth=0.1)
+        points = ax.scatter(measure_per_step[:, 0], df.loc[measure_per_step[:, 0], 'y'],
+                            marker='o', c=measure_per_step[:, 1], cmap='copper')
         f.colorbar(points)
 
-    def plot_rewards(self):
-        """Plot the behaviour of the buyer agent."""
-
-        # cut off all trailing zeros
-        reward_per_step = self.reward_tracker[:self.counter]
-        # print('max reward: ', max([0.001, max(reward_per_step[:, 0])]))
-        # print('min reward: ', min([-0.001, min(reward_per_step[:, 0])]))
-        # divnorm_reward = colors.TwoSlopeNorm(vmin=min([-0.001, min(reward_per_step[:, 0])]), vcenter=0,
-        #                               vmax=max([0.001, max(reward_per_step[:, 0])]))
-        divnorm_reward = colors.TwoSlopeNorm(vmin=-10, vcenter=0,
-                                      vmax=10)
-        f_reward, ax_reward = plt.subplots()
-        plt.title('reward per time step')
-        plt.xlabel('Time step')
-        plt.ylabel('Price of product')
-        plt.plot(reward_per_step[:, 0], df.loc[reward_per_step[:, 0], 'y'], linewidth=0.1)
-        points = ax_reward.scatter(reward_per_step[:, 0], df.loc[reward_per_step[:, 0], 'y'],
-                            marker='o', c=reward_per_step[:, 1], cmap='RdYlGn', norm=divnorm_reward)
-        f_reward.colorbar(points)
-
-    def plot_inventory(self):
-        """Plot the behaviour of the buyer agent."""
-
-        # cut off all trailing zeros
-        inventory_per_step = self.inventory_tracker[:self.counter]
-        # print('max inven: ', max([0.001, max(inventory_per_step[:, 0])]))
-        # print('min inven: ', min([-0.001, min(inventory_per_step[:, 0])]))
-        # divnorm_inventory = colors.TwoSlopeNorm(vmin=min([-0.001, min(inventory_per_step[:, 0])]), vcenter=0,
-        #                               vmax=max([0.001, max(inventory_per_step[:, 0])]))
-        # divnorm_inventory = colors.TwoSlopeNorm(vmin=0,
-        #                               vmax=self.storage_capacity)
-
-        f_inventory, ax_inventory = plt.subplots()
-        plt.title('Inventory per time step')
-        plt.xlabel('Time step')
-        plt.ylabel('Price of product')
-        plt.plot(inventory_per_step[:, 0], df.loc[inventory_per_step[:, 0], 'y'], linewidth=0.1)
-        points = ax_inventory.scatter(inventory_per_step[:, 0], df.loc[inventory_per_step[:, 0], 'y'],
-                            marker='o', c=inventory_per_step[:, 1], cmap='RdYlGn')
-        f_inventory.colorbar(points)
 
     def set_saving(self, saving_mode=False):
         """Turn saving on or off."""
         self.save_results = saving_mode
     
+def run_simulation(env, plot=False):
+    if args.plot:
+        env.env_method('set_saving', saving_mode=True)
     
-def run_baseline(env, action, steps=1000):
+    obs = env.reset()
+    for i in range(args.simsteps):
+        action, _states = model.predict(obs)
+        obs, rewards, done, info = env.step(action)
+        if i % 200 == 0:
+            env.render()
+            
+    # show results
+    logger.info("Model final results:")
+    env.render()
+    
+    if plot:
+        utils.plot_results(env=env)
+    return env
+
+def run_baseline_simulation(env, action, steps=1000):
     """Run baseline simulation."""
+    logger.setLevel(logging.INFO)
+
+    obs = env.env_method('baseline_reset')
     for i in range(steps):
-        obs, rewards, done, info = env.step([[action]])
+        _ = env.step([[action]])
 
     logger.info("Baseline final results")
     env.render()
+    return env
 
 
 if __name__ == '__main__':
     args = utils.parse_config()
     utils.create_logger_and_set_level(args.verbose)
 
-    df = pd.read_csv('./data/US_SMP_food_TA.csv', index_col=0).iloc[69:].reset_index(drop=True)
-    df = df.sort_values('ds')
-
+    df = pd.read_csv('./data/US_SMP_food_TA.csv', index_col=0).iloc[69:].reset_index(drop=True).sort_values('ds')
+    ts_feature_names = \
+        ["y", "y_24_quo", "y_26_quo", "y_37_quo", "y_94_quo", "y_20_quo", "y_6_quo", "y_227_pro", "y_785_end",
+        "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band", "momentum1", "kalman"]
+    
     # define buyer properties
     properties = {
         'product_shelf_life': 13,
@@ -393,53 +380,29 @@ if __name__ == '__main__':
         'consumption_rate': 3000,
         'storage_cost': 0.2,
         'cash_inflow': 8000000,
-        'max_buy_amount': 10000
+        'upper_buy_limit': 10000
     }
 
-    ts_feature_names = \
-        ["y", "y_24_quo", "y_26_quo", "y_37_quo", "y_94_quo", "y_20_quo", "y_6_quo", "y_227_pro", "y_785_end",
-         "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band", "momentum1", "kalman"]
-
-    # The algorithms require a vectorized environment to run
+    # setup vectorized env and model
     env = DummyVecEnv([lambda: BuyerEnvironment(args, df, properties, ts_feature_names)])
-
-    # specify the model used for learning a policy
-    # model = PPO("MultiInputLstmPolicy", env, verbose=200)
     model = PPO('MultiInputPolicy', env, verbose=20, learning_rate=0.01)
 
     # train model
-    start_training_time = time.time()
-    model.learn(total_timesteps=args.trainsteps)
-    end_training_time = time.time()
-
-    logger.info(f'Total time to train: {end_training_time - start_training_time:.2f} seconds.')
+    utils.run_and_track_runtime(model.learn, total_timesteps=args.trainsteps)
 
     # carry out simulation
-    env.env_method('set_saving', saving_mode=True)
-    obs = env.reset()
-    for i in range(args.simsteps):
-        action, _states = model.predict(obs)
-        obs, rewards, done, info = env.step(action)
-
-        if i % 200 == 0:
-            env.render()
-    
-    logger.info("Model final results")
-    env.render()
-    total_worth, balance, current_inventory, total_spent_value = env.env_method('return_results')[0]
-
-    
-    if args.plot:
-        env.env_method('plot_buys')
-        env.env_method('plot_rewards')
-        env.env_method('plot_inventory')
-        plt.show()
+    env = run_simulation(env, plot=args.plot)
+    total_worth, \
+        balance, \
+        current_inventory, \
+        total_spent_value = env.env_method('return_results')[0]
     
     # run baseline: buying consumption rate
-    obs = env.env_method('baseline_reset')
-    logger.setLevel(logging.INFO)
-    run_baseline(env=env, action=properties['consumption_rate']/properties['max_buy_amount'], steps=args.simsteps)
-    b_total_worth, b_balance, b_current_inventory, b_total_spent_value = env.env_method('return_results')[0]
+    env = run_baseline_simulation(env=env, action=properties['consumption_rate']/properties['upper_buy_limit'], steps=args.simsteps)
+    b_total_worth, \
+        b_balance, \
+        b_current_inventory, \
+        b_total_spent_value = env.env_method('return_results')[0]
     
     print(f'Total worth (incl inventory) improvement over baseline: {(total_worth-b_total_worth)/b_total_worth*100}%')
     
