@@ -51,7 +51,7 @@ def run_and_track_runtime(func, **args):
     start_time = time.time()
     func(**args)
     end_time = time.time
-    logger.info(f'Total time to train: {time.time() - start_time:.2f} seconds.')
+    logger.info(f'Total time to train: {end_time - start_time:.2f} seconds.')
     
 def plot_results(env):
     env.env_method('plot_measure', measure='buys')
