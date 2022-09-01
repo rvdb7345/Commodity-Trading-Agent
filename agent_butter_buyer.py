@@ -49,7 +49,7 @@ class BuyerEnvironment(gym.Env):
         # self.observation_space = spaces.Box(low=0, high=1, shape=(21, self.lookback_period + 1), dtype=np.float16)
         self.observation_space = spaces.Dict({
             'time_series': spaces.Box(low=0, high=np.inf, shape=(20, self.lookback_period)),
-            'env_props': spaces.Box(low=0, high=1, shape=(6,))
+            'env_props': spaces.Box(low=0, high=1, shape=(4,))
         })
 
         self.product_shelf_life = properties['product_shelf_life']
@@ -79,7 +79,6 @@ class BuyerEnvironment(gym.Env):
         """Reset simulation values to starting values."""
         self.balance = INITIAL_ACCOUNT_BALANCE
 
-        self.cost_basis = 0
         self.total_spent_value = 0
         self.counter = 0
         self.current_inventory = pd.DataFrame(columns=['time_in_storage', 'amount'], dtype=float)
@@ -127,14 +126,13 @@ class BuyerEnvironment(gym.Env):
                 for feat_name in self.ts_feature_names
             ],
             'env_props': [
-                self.balance,
+                self.balance/300000000000,
                 self.current_inventory['amount'].sum()/self.storage_capacity,
-                self.cost_basis,
-                self.min_inventory_threshold,
-                self.cash_buy_limit,
-                self.storage_buy_limit,                
+                min([self.cash_buy_limit/self.storage_capacity, 1]),
+                self.storage_buy_limit/self.storage_capacity,                
         ]}
-
+        
+        logger.debug(f"env values {frame['env_props']}")
         return frame
 
     def step(self, action: float) -> Union[dict, float, bool, dict]:
@@ -247,29 +245,18 @@ class BuyerEnvironment(gym.Env):
         product_bought = min([self.storage_buy_limit, self.cash_buy_limit, amount])
         logger.debug(f'product bought {product_bought}')
 
-        
-        # calculate average buying price of previous products
-        # prev_cost = self.cost_basis * self.current_inventory
-
         # calculate cost of current acquisition
         additional_cost = product_bought * (current_price + self.ordering_cost)
         logger.debug(f'additional cost {additional_cost}')
 
-
         # update balance
         self.balance -= additional_cost
-
-        # calculate average buying price of all products
-        # self.cost_basis = (prev_cost + additional_cost) / (self.current_inventory + product_bought)
 
         # update inventory
         if not product_bought == 0:
             self.current_inventory.loc[self.counter + 1] = [0, product_bought]
 
         self.total_spent_value += additional_cost
-
-        if self.current_inventory['amount'].sum() == 0:
-            self.cost_basis = 0
 
         # update inventory with spoiled and used product --> FIFO strategy
         if self.current_inventory['amount'].sum() > self.consumption_rate:
