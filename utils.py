@@ -17,7 +17,7 @@ def parse_config():
     parser.add_argument('--plot', '-p', action='store_true', default=False, 
                         help='plot results')
     parser.add_argument('--trainsteps', '-t', default=40000, type=int, 
-                        help='training steps')
+                        help='training steps, 40.000 steps takes ±1 min')
     parser.add_argument('--simsteps', '-s', default=1000, type=int,
                         help='simulation steps')
     args = vars(parser.parse_known_args()[0])
