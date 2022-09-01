@@ -302,22 +302,28 @@ class BuyerEnvironment(gym.Env):
     def plot_measure(self, measure='buys'):
         """Plot the behaviour of the buyer agent."""
         if measure.lower() == 'buys':
-            measure_per_step = self.buy_tracker[:self.counter]
+            measure_per_step = self.buy_tracker
+            cmap = 'copper'
+            norm = None
         if measure.lower() == 'reward':
             measure_per_step = self.reward_tracker
+            cmap = 'RdYlGn'
+            norm = colors.TwoSlopeNorm(vmin=-10, vcenter=0, vmax=10)
         if measure.lower() == 'inventory':
             measure_per_step = self.inventory_tracker
+            cmap = 'RdYlGn'
+            norm = None
         
         # cut off all trailing zeros
-        self.buy_tracker[:self.counter]
+        measure_per_step = measure_per_step[:self.counter]
         
         f, ax = plt.subplots()
         plt.title(f'{measure} per time step')
         plt.xlabel('Time step')
         plt.ylabel('Price of product')
-        plt.plot(measure_per_step[:, 0], df.loc[measure_per_step[:, 0], 'y'], linewidth=0.1)
-        points = ax.scatter(measure_per_step[:, 0], df.loc[measure_per_step[:, 0], 'y'],
-                            marker='o', c=measure_per_step[:, 1], cmap='copper')
+        plt.plot(measure_per_step[:, 0], self.df_y.loc[measure_per_step[:, 0], 'y'], linewidth=0.1)
+        points = ax.scatter(measure_per_step[:, 0], self.df_y.loc[measure_per_step[:, 0], 'y'],
+                            marker='o', c=measure_per_step[:, 1], cmap=cmap, norm=norm)
         f.colorbar(points)
 
 
