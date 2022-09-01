@@ -37,7 +37,8 @@ class BuyerEnvironment(gym.Env):
             ts_feature_names: names of the time series features to use
         """
         super(BuyerEnvironment, self).__init__()
-        self.df = df
+        self.df_y = df[['y']]
+        self.df = self.data_scaler(df)
         self.ts_feature_names = ts_feature_names
         self.properties = properties
 
@@ -66,7 +67,14 @@ class BuyerEnvironment(gym.Env):
         self.upper_buy_limit = properties['upper_buy_limit']
         self.price_diff_scaler = 10 # price difference on range [0, 50]
 
-
+    def data_scaler(self, df):     
+        scale_columns = np.setdiff1d(df.columns.values, ['ds'])
+        df_to_scale = df[scale_columns]
+        df_scaled = (df_to_scale-df_to_scale.min())/(df_to_scale.max()-df_to_scale.min())*2 - 1
+        df_scaled.insert(0, 'ds', df.ds)
+        return df_scaled
+        
+        
     def reset_values(self):
         """Reset simulation values to starting values."""
         self.balance = INITIAL_ACCOUNT_BALANCE
@@ -108,7 +116,7 @@ class BuyerEnvironment(gym.Env):
         Returns:
             Next inputs for model
         """
-        current_price = self.df.loc[self.current_step, "y"]
+        current_price = self.df_y.loc[self.current_step, "y"]
         self.cash_buy_limit = int(self.balance / current_price)
         self.storage_buy_limit = self.storage_capacity - self.current_inventory['amount'].sum()
 
@@ -180,8 +188,8 @@ class BuyerEnvironment(gym.Env):
             logger.debug('Outside buy limits: -1')
 
         # reward buying at the correct price point
-        current_price = self.df.loc[self.current_step, "y"]
-        next_week_price = self.df.loc[self.current_step + 1, "y"]
+        current_price = self.df_y.loc[self.current_step, "y"]
+        next_week_price = self.df_y.loc[self.current_step + 1, "y"]
         price_profit = next_week_price - current_price
 
         reward += price_profit * action / self.upper_buy_limit / self.price_diff_scaler
@@ -230,7 +238,7 @@ class BuyerEnvironment(gym.Env):
         """Update state parameters based on the action."""
 
         # Set the current price to a random price within the time step
-        current_price = self.df.loc[self.current_step, "y"]
+        current_price = self.df_y.loc[self.current_step, "y"]
 
         amount = action
         logger.debug(f'action {amount}')
@@ -296,7 +304,7 @@ class BuyerEnvironment(gym.Env):
     def return_results(self):
         """Return end results of a simulation."""
         current_inventory = self.current_inventory["amount"].sum()
-        total_worth = self.balance + current_inventory * self.df.loc[self.current_step, "y"]
+        total_worth = self.balance + current_inventory * self.df_y.loc[self.current_step, "y"]
         return total_worth, self.balance, current_inventory, self.total_spent_value
         
     def plot_measure(self, measure='buys'):
