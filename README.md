@@ -2,13 +2,13 @@
 
 A repo for the buyer persona in the Reinforcement Learning project of C7. 
 
-##### Current data
+### Current data
 Current data added to the repo is:
 - AAPL.csv --> stock market data of the AAPL stock for experimentation.
 - US_SMP_food_TA.csv --> example data of the US Skimmed Milk Powder price including prices of related products/countries and Technical Indicators.
 
 
-##### Installation
+### Installation
 
 _Before env installation:_ Make sure that openmpi is installed. If not yet installed, install by:
 
@@ -30,3 +30,20 @@ pipenv install
 
 Now all requirements should be installed. Installation can also go through installation of the requirements.txt 
 (if kept up-to-date).
+
+### Running
+All code for running our agent butter buyer can be found in `agent_butter_buyer.py`. Running this file will now use the PPO actor-critic model from the stable baselines package and compare results with a simple baseline (buy what is needed every week).
+
+### Flags
+#### --verbose, -v
+This flag can be used to set the logger level, by default this is set to `info` level which logs basic information on training and simulating step. The `debug` level shows multiple measures/rewards per step, this is enabled by running:
+```python agent_butter_buyer.py -v "debug"```
+
+#### --plot, -p
+Enables plotting of rewards, inventory, actions of the simulation after training.
+Note: the run will continue comparing against a baseline after the plots are closed.
+
+#### --trainsteps, -t
+Determines the number of training steps, default is 40000 which takes ±1 minute. Running longer (<10min) is recommended for better results.
+
+
