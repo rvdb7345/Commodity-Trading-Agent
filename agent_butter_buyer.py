@@ -126,19 +126,36 @@ class BuyerEnvironment(gym.Env):
                 for feat_name in self.ts_feature_names
             ],
             'env_props': [
-                self.balance/300000000000,
+                self.balance/100000000000,
                 self.current_inventory['amount'].sum()/self.storage_capacity,
                 min([self.cash_buy_limit/self.storage_capacity, 1]),
                 self.storage_buy_limit/self.storage_capacity,                
         ]}
         
-        logger.debug(f"env values {frame['env_props']}")
+        logger.debug(f"Env variables [balance, inventory, cash_buy_lim, storage_buy_lim]")
+        logger.debug(f"scaled values {['%.5f' % value for value in frame['env_props']]}")
         return frame
+
+    def update_measure_tracker(self, action, reward):
+        """Update measure tracker for plotting end results."""
+        # if trackers too small, add rows
+        if self.counter == self.buy_tracker.shape[1]:
+            self.buy_tracker = np.vstack([self.buy_tracker, np.zeros(self.buy_tracker.shape)])
+        if self.counter == self.reward_tracker.shape[1]:
+            self.reward_tracker = np.vstack([self.reward_tracker, np.zeros(self.reward_tracker.shape)])
+        if self.counter == self.inventory_tracker.shape[1]:
+            self.inventory_tracker = np.vstack([self.inventory_tracker, np.zeros(self.inventory_tracker.shape)])
+
+        # track the buys, rewards, inventory at every step
+        self.buy_tracker[self.counter] = np.array([self.current_step, action])
+        self.reward_tracker[self.counter] = np.array([self.current_step, reward])
+        self.inventory_tracker[self.counter] = np.array([self.current_step, self.current_inventory['amount'].sum()])
+
 
     def step(self, action: float) -> Union[dict, float, bool, dict]:
         """Take the next action and update state and rewards."""
         logger.debug("---------------")
-        logger.debug(f'Current step: {self.current_step}')
+        logger.debug(f'Step: {self.current_step}')
 
         # multiply action [-1,1] by upper_buy_limit factor (works better with NN model)
         action = action[0]*self.upper_buy_limit
@@ -150,85 +167,77 @@ class BuyerEnvironment(gym.Env):
             self.current_step = 0
         '''
         reward
-        - as cheap as possible
+        - buy at the right price
         punish
+        - missed opportunity
+        - spoilage
         - inventory below threshold
-        - inventory below 0 (high punishment)
+        - inventory below 0 
         - action higher than storage/cash limit
         '''
-        reward = 0
-        delay_modifier = (self.current_step / MAX_STEPS)
-
-        # empty out spoiled products
-        sum_spoiled_product = self.current_inventory.loc[self.current_inventory['time_in_storage'] >
-                                                         self.product_shelf_life, 'amount'].sum()
-        self.current_inventory = self.current_inventory.loc[self.current_inventory['time_in_storage'] <=
-                                                            self.product_shelf_life]
-
-        # penalise for wastage
-        reward -= sum_spoiled_product / 1000
-        logger.debug(f'The spoiled product reward: {-sum_spoiled_product / 1000}')
-
-        # penalise inventory below threshold
-        if self.current_inventory['amount'].sum() < self.min_inventory_threshold:
-            reward -= 1 #* (self.current_inventory - self.min_inventory_threshold)
-            logger.debug('Under min inventory: -1')
-
-        # penalise negative inventory
-        if self.current_inventory['amount'].sum() < 0:
-            reward -= 1
-            logger.debug('Under 0 inventory: -1')
-
-        
-        # penalise buys too large for storage or cash
-        if action > self.cash_buy_limit or action > self.storage_buy_limit:
-            reward -= 1
-            logger.debug('Outside buy limits: -1')
+        inv_under_min_reward = 0
+        inv_under_zero_reward = 0
+        action_over_limit_reward = 0
 
         # reward buying at the correct price point
         current_price = self.df_y.loc[self.current_step, "y"]
         next_week_price = self.df_y.loc[self.current_step + 1, "y"]
         price_profit = next_week_price - current_price
-
-        reward += price_profit * action / self.upper_buy_limit / self.price_diff_scaler
+        buy_priceprofit_reward = price_profit * action / self.upper_buy_limit / self.price_diff_scaler #NOTE maybe product_bought better than action, test
 
         # punishment for missed price opportunity
         buy_amount_weight = (0.3 - action / self.upper_buy_limit)
-        reward -= price_profit / (1 + action / self.upper_buy_limit) / self.price_diff_scaler * buy_amount_weight
+        missed_opportunity_reward = price_profit / (1 + action / self.upper_buy_limit) / self.price_diff_scaler * buy_amount_weight
 
-        logger.debug(f'The price profit reward: {price_profit * action / self.upper_buy_limit / self.price_diff_scaler}')
-        logger.debug(f'The missed opportunity reward: {-price_profit / (1 + action / self.upper_buy_limit) / self.price_diff_scaler * buy_amount_weight}')
+        logger.debug(f'current price: {current_price}')
+        logger.debug(f'next week price: {next_week_price}')
+        logger.debug(f'The price profit reward: {buy_priceprofit_reward}')
+        logger.debug(f'The missed opportunity reward: {-missed_opportunity_reward}')
+        
+        # punishment for spoilage + update inventory
+        sum_spoiled_product = self.current_inventory.loc[self.current_inventory['time_in_storage'] >
+                                                         self.product_shelf_life, 'amount'].sum()
+        spoil_reward = sum_spoiled_product / 1000
+        logger.debug(f'The spoiled product reward: {-spoil_reward}')
+        
+        self.current_inventory = self.current_inventory.loc[self.current_inventory['time_in_storage'] <=
+                                                            self.product_shelf_life]
 
+        # punishment for inventory below threshold
+        if self.current_inventory['amount'].sum() < self.min_inventory_threshold:
+            inv_under_min_reward = 1 #* (self.current_inventory - self.min_inventory_threshold)
+            logger.debug('Under min inventory: -1')
+
+        # punishment for negative inventory
+        if self.current_inventory['amount'].sum() < 0:
+            inv_under_zero_reward = 1
+            logger.debug('Under 0 inventory: -1')
+
+        # punishment for buy action too large for storage or cash limits
+        if action > self.cash_buy_limit or action > self.storage_buy_limit:
+            action_over_limit_reward = 1
+            logger.debug('Action over buy/storage limits: -1')
+
+        # add delay modifier to stimulate long-term behaviour
+        # reward *= delay_modifier
+        
+        # calculate total reward
+        reward = buy_priceprofit_reward - missed_opportunity_reward - spoil_reward - inv_under_min_reward - inv_under_zero_reward - action_over_limit_reward
+        logger.debug(f'Reward {reward}')
+        logger.debug(f'New inventory: {self.current_inventory["amount"].sum()}')
+        
+        if self.save_results:
+            self.update_measure_tracker(action, reward)
+        
         # generate next observation
         obs = self._next_observation()
 
         # stop simulation if inventory goes negative
         # done = True if self.current_inventory['amount'].sum() == 0 else False  # TODO: set end signal
         done = False
-
-        if self.save_results:
-            # if trackers too small, add rows
-            if self.counter == self.buy_tracker.shape[1]:
-                self.buy_tracker = np.vstack([self.buy_tracker, np.zeros(self.buy_tracker.shape)])
-            if self.counter == self.reward_tracker.shape[1]:
-                self.reward_tracker = np.vstack([self.reward_tracker, np.zeros(self.reward_tracker.shape)])
-            if self.counter == self.inventory_tracker.shape[1]:
-                self.inventory_tracker = np.vstack([self.inventory_tracker, np.zeros(self.inventory_tracker.shape)])
-
-            # track the buys, rewards, inventory at every step
-            self.buy_tracker[self.counter] = np.array([self.current_step, action])
-            self.reward_tracker[self.counter] = np.array([self.current_step, reward])
-            self.inventory_tracker[self.counter] = np.array([self.current_step, self.current_inventory['amount'].sum()])
-
-        # add delay modifier to stimulate long-term behaviour
-        # reward *= delay_modifier
-        # logger.debug((f'The delay modifier {delay_modifier}'))
-        logger.debug(f'reward {reward}')
         
         self.counter += 1
-
         self.current_inventory['time_in_storage'] = self.current_inventory['time_in_storage'] + 1
-        logger.debug(f'The inventory: {self.current_inventory["amount"].sum()}')
 
         return obs, reward, done, {}
 
@@ -239,15 +248,15 @@ class BuyerEnvironment(gym.Env):
         current_price = self.df_y.loc[self.current_step, "y"]
 
         amount = action
-        logger.debug(f'action {amount}')
+        logger.debug(f'Action {amount}')
 
         # determine max amount of buyable product (storage and cash constraints)
         product_bought = min([self.storage_buy_limit, self.cash_buy_limit, amount])
-        logger.debug(f'product bought {product_bought}')
+        logger.debug(f'Product bought {product_bought}')
 
         # calculate cost of current acquisition
         additional_cost = product_bought * (current_price + self.ordering_cost)
-        logger.debug(f'additional cost {additional_cost}')
+        logger.debug(f'Additional cost {additional_cost}')
 
         # update balance
         self.balance -= additional_cost
@@ -278,8 +287,7 @@ class BuyerEnvironment(gym.Env):
         # update balance with operational costs
         self.balance += self.cash_inflow - self.storage_cost * self.current_inventory['amount'].sum()
 
-        logger.debug(f'balance: {self.balance}')
-        logger.debug(f'current price: {current_price}')
+        logger.debug(f'Balance: {self.balance}')
 
     def render(self, mode='human', close=False):
         """Render the environment to the screen."""

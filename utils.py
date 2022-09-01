@@ -50,7 +50,7 @@ def create_logger_and_set_level(logging_level):
 def run_and_track_runtime(func, **args):
     start_time = time.time()
     func(**args)
-    end_time = time.time
+    end_time = time.time()
     logger.info(f'Total time to train: {end_time - start_time:.2f} seconds.')
     
 def plot_results(env):
