@@ -176,7 +176,6 @@ class BuyerEnvironment(gym.Env):
         - missed opportunity
         - spoilage
         - inventory below threshold
-        - inventory below 0 
         - action higher than storage/cash limit
         '''
         inv_under_min_reward = 0
@@ -184,7 +183,7 @@ class BuyerEnvironment(gym.Env):
 
         # reward buying at the correct price point
         current_price = self.df_y.loc[self.current_step, "y"]
-        next_week_price = self.df_y.loc[self.current_step + 1, "y"]
+        next_week_price = self.df_y.loc[self.current_step + 1:self.current_step + self.product_shelf_life, "y"].min()
         price_profit = next_week_price - current_price
         buy_priceprofit_reward = price_profit * self.product_bought / self.upper_buy_limit / self.price_diff_scaler #NOTE maybe product_bought better than action, test
 
@@ -206,24 +205,15 @@ class BuyerEnvironment(gym.Env):
         self.current_inventory = self.current_inventory.loc[self.current_inventory['time_in_storage'] <=
                                                             self.product_shelf_life]
 
-        # # punishment for inventory below threshold
-        # if self.current_inventory['amount'].sum() < self.min_inventory_threshold:
-        #     inv_under_min_reward = 3 #* (self.current_inventory - self.min_inventory_threshold)
-        #     logger.debug('Under min inventory: -1')
-        
         # punishment for emergency buy to reach inventory threshold
         if self.min_buy_need > action_buy_amount:
             inv_under_min_reward = 3 
             logger.debug(f'Emergency buy (to reach min inventory): -{inv_under_min_reward}')
             
-
         # punishment for buy action too large for storage or cash limits
         if action_buy_amount > self.cash_buy_limit or action_buy_amount > self.storage_buy_limit:
             action_over_limit_reward = 1
             logger.debug('Action over buy/storage limits: -1')
-
-        # add delay modifier to stimulate long-term behaviour
-        # reward *= delay_modifier
         
         # calculate total reward
         reward = buy_priceprofit_reward - missed_opportunity_reward - spoil_reward - inv_under_min_reward - action_over_limit_reward
@@ -348,7 +338,6 @@ def run_simulation(env, model, simsteps, plot=False):
     if plot:
         env.env_method('set_saving', saving_mode=True)
     
-    logger.setLevel(logging.DEBUG)
     obs = env.reset()
     for i in range(simsteps):
         action, _states = model.predict(obs)
@@ -366,7 +355,7 @@ def run_simulation(env, model, simsteps, plot=False):
 
 def run_baseline_simulation(env, action, steps=1000):
     """Run baseline simulation."""
-    logger.setLevel(logging.INFO)
+    logging.getLogger('logger').setLevel(logging.INFO)
 
     obs = env.env_method('baseline_reset')
     for i in range(steps):
@@ -377,10 +366,10 @@ def run_baseline_simulation(env, action, steps=1000):
     return env
 
 
-def train_and_simulate(args, df, ts_feature_names, properties):
+def train_and_simulate(args, df, ts_feature_names, properties, verbose=20):
     # setup vectorized env and model
     env = DummyVecEnv([lambda: BuyerEnvironment(args, df, properties, ts_feature_names)])
-    model = PPO('MultiInputPolicy', env, verbose=20, learning_rate=0.01)
+    model = PPO('MultiInputPolicy', env, verbose=verbose, learning_rate=0.01) #$TODO set verbose back to 20
 
     # train model
     utils.run_and_track_runtime(model.learn, total_timesteps=args.trainsteps)
@@ -422,3 +411,4 @@ if __name__ == '__main__':
     print(f"Total worth (incl inventory) baseline: {results_dict_baseline['total_worth']:.2f}")
 
     print(f"Total worth improvement over baseline: {(results_dict['total_worth']-results_dict_baseline['total_worth'])/results_dict_baseline['total_worth']*100:.4f}%")
+    plt.show()
