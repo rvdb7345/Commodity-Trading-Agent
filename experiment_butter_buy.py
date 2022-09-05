@@ -32,10 +32,10 @@ if __name__ == '__main__':
 
         experiment_results.loc[rep_id,:] = [results_dict['total_worth'], results_dict_baseline['total_worth']]
         print(f'\nExperiment {rep_id}')
-        print(f"Total worth (incl inventory) agent butter: {results_dict['total_worth']:.2f}")
-        print(f"Total worth (incl inventory) baseline: {results_dict_baseline['total_worth']:.2f}")
+        # print(f"Total worth (incl inventory) agent butter: {results_dict['total_worth']:.2f}")
+        # print(f"Total worth (incl inventory) baseline: {results_dict_baseline['total_worth']:.2f}")
 
-        print(f"Total worth improvement over baseline: {(results_dict['total_worth']-results_dict_baseline['total_worth'])/results_dict_baseline['total_worth']*100:.4f}%")
+        # print(f"Total worth improvement over baseline: {(results_dict['total_worth']-results_dict_baseline['total_worth'])/results_dict_baseline['total_worth']*100:.4f}%")
 
     experiment_results['improvement'] = (experiment_results['model_results']-experiment_results['baseline_results'])/experiment_results['baseline_results']*100
     print(experiment_results.head(args.reps))
