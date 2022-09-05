@@ -226,9 +226,9 @@ class BuyerEnvironment(gym.Env):
         # generate next observation
         obs = self._next_observation()
 
-        # stop simulation if inventory goes negative
-        # done = True if self.current_inventory['amount'].sum() == 0 else False  # TODO: set end signal
         done = False
+        if self.balance < 0:
+            done = True
         
         self.counter += 1
         self.current_inventory['time_in_storage'] = self.current_inventory['time_in_storage'] + 1
