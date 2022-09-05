@@ -12,6 +12,7 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
+            "args": ["-v", "debug", "-p", "-t", "40"]
         }
     ]
 }
