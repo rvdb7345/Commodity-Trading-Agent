@@ -28,19 +28,29 @@ if __name__ == '__main__':
 
     experiment_results = pd.DataFrame(columns=['model_results', 'baseline_results'], index=list(range(args.reps)))
     for rep_id in range(args.reps):
-        results_dict, results_dict_baseline = train_and_simulate(args, df, ts_feature_names, properties)
+        results_dict, results_dict_baseline = train_and_simulate(args, df, ts_feature_names, properties, verbose=False)
 
         experiment_results.loc[rep_id,:] = [results_dict['total_worth'], results_dict_baseline['total_worth']]
-
+        print(f'\nExperiment {rep_id}')
         print(f"Total worth (incl inventory) agent butter: {results_dict['total_worth']:.2f}")
         print(f"Total worth (incl inventory) baseline: {results_dict_baseline['total_worth']:.2f}")
 
-        print(f"Total worth improvement over baseline: {(results_dict['total_worth']-results_dict_baseline['total_worth'])/results_dict_baseline['total_worth']*100:.4f}%\n")
+        print(f"Total worth improvement over baseline: {(results_dict['total_worth']-results_dict_baseline['total_worth'])/results_dict_baseline['total_worth']*100:.4f}%")
 
     experiment_results['improvement'] = (experiment_results['model_results']-experiment_results['baseline_results'])/experiment_results['baseline_results']*100
     print(experiment_results.head(args.reps))
     
-    print(f"Experiment improvement over baseline mean: {experiment_results['improvement'].mean()}")
+    print(f"\nExperiment improvement over baseline mean: {experiment_results['improvement'].mean()}")
     print(f"Experiment improvement over baseline std: {experiment_results['improvement'].std()}")
     
     w, p = wilcoxon(experiment_results['improvement'], alternative='greater')
+    
+    # perform wilcoxon on %improvement over baseline
+    print("\nWilcoxon test")
+    print(f"H0: model performance = baseline performance")
+    print(f"H1: model performance > baseline performance")
+    print(f"Test p-value: {p}")
+    if p <= 0.05:
+        print("H0 is rejected, model performance is better than the baseline")
+    else:
+        print("H0 cannot be rejected, the model is NOT significantly better than the baseline")
