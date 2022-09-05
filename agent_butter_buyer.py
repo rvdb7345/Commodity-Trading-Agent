@@ -158,8 +158,8 @@ class BuyerEnvironment(gym.Env):
         logger.debug(f'Step: {self.current_step}')
 
         # multiply action [-1,1] by upper_buy_limit factor (works better with NN model)
-        action = action[0]*self.upper_buy_limit
-        self._take_action(action)
+        action_buy_amount = action[0]*self.upper_buy_limit
+        self._take_action(action_buy_amount)
 
         # make sure the current step does not move past the end of the ts
         self.current_step += 1
@@ -214,7 +214,7 @@ class BuyerEnvironment(gym.Env):
             logger.debug('Under 0 inventory: -1')
 
         # punishment for buy action too large for storage or cash limits
-        if action > self.cash_buy_limit or action > self.storage_buy_limit:
+        if action_buy_amount > self.cash_buy_limit or action > self.storage_buy_limit:
             action_over_limit_reward = 1
             logger.debug('Action over buy/storage limits: -1')
 
@@ -227,7 +227,7 @@ class BuyerEnvironment(gym.Env):
         logger.debug(f'New inventory: {self.current_inventory["amount"].sum()}')
         
         if self.save_results:
-            self.update_measure_tracker(action, reward)
+            self.update_measure_tracker(action_buy_amount, reward)
         
         # generate next observation
         obs = self._next_observation()
@@ -241,29 +241,28 @@ class BuyerEnvironment(gym.Env):
 
         return obs, reward, done, {}
 
-    def _take_action(self, action: float):
+    def _take_action(self, action_buy_amount: float):
         """Update state parameters based on the action."""
 
         # Set the current price to a random price within the time step
         current_price = self.df_y.loc[self.current_step, "y"]
 
-        amount = action
-        logger.debug(f'Action {amount}')
+        logger.debug(f'Action {action_buy_amount}')
 
         # determine max amount of buyable product (storage and cash constraints)
-        product_bought = min([self.storage_buy_limit, self.cash_buy_limit, amount])
-        logger.debug(f'Product bought {product_bought}')
+        self.product_bought = min([self.storage_buy_limit, self.cash_buy_limit, action_buy_amount])
+        logger.debug(f'Product bought {self.product_bought}')
 
         # calculate cost of current acquisition
-        additional_cost = product_bought * (current_price + self.ordering_cost)
+        additional_cost = self.product_bought * (current_price + self.ordering_cost)
         logger.debug(f'Additional cost {additional_cost}')
 
         # update balance
         self.balance -= additional_cost
 
         # update inventory
-        if not product_bought == 0:
-            self.current_inventory.loc[self.counter + 1] = [0, product_bought]
+        if not self.product_bought == 0:
+            self.current_inventory.loc[self.counter + 1] = [0, self.product_bought]
 
         self.total_spent_value += additional_cost
 
@@ -339,6 +338,7 @@ def run_simulation(env, plot=False):
     if plot:
         env.env_method('set_saving', saving_mode=True)
     
+    logger.setLevel(logging.DEBUG)
     obs = env.reset()
     for i in range(args.simsteps):
         action, _states = model.predict(obs)
@@ -409,7 +409,10 @@ if __name__ == '__main__':
         b_current_inventory, \
         b_total_spent_value = env.env_method('return_results')[0]
     
-    print(f'Total worth (incl inventory) improvement over baseline: {(total_worth-b_total_worth)/b_total_worth*100}%')
+    print(f'Total worth (incl inventory) agent butter: {total_worth:.2f}')
+    print(f'Total worth (incl inventory) baseline: {b_total_worth:.2f}')
+
+    print(f'Total worth improvement over baseline: {(total_worth-b_total_worth)/b_total_worth*100:.4f}%')
     
     
 
