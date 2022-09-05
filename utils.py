@@ -59,4 +59,4 @@ def plot_results(env):
     env.env_method('plot_measure', measure='buys')
     env.env_method('plot_measure', measure='reward')
     env.env_method('plot_measure', measure='inventory')
-    plt.show()
+    
