@@ -55,8 +55,8 @@ def run_and_track_runtime(func, **args):
     end_time = time.time()
     logger.info(f'Total time to train: {end_time - start_time:.2f} seconds.')
     
-def plot_results(env):
-    env.env_method('plot_measure', measure='buys')
-    env.env_method('plot_measure', measure='reward')
-    env.env_method('plot_measure', measure='inventory')
+def plot_results(env, dataset='test'):
+    env.env_method('plot_measure', measure='buys', dataset=dataset)
+    env.env_method('plot_measure', measure='reward', dataset=dataset)
+    env.env_method('plot_measure', measure='inventory', dataset=dataset)
     

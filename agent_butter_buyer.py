@@ -108,7 +108,14 @@ class BuyerEnvironment(gym.Env):
         self.current_step = self.start_step
         self.reset_values()
 
+    def enable_simulation_dataset(self, test_df):
+        self.df_y = test_df[['y']]
+        self.df = self.data_scaler(test_df)
+        
+        self.current_step = 0
+        self.start_step = self.current_step
 
+        
     def _next_observation(self) -> dict:
         """Create observation dictionary with all features.
 
@@ -301,7 +308,7 @@ class BuyerEnvironment(gym.Env):
         results_dict['total_spent_value'] = self.total_spent_value
         return results_dict
         
-    def plot_measure(self, measure='buys'):
+    def plot_measure(self, measure='buys', dataset='test'):
         """Plot the behaviour of the buyer agent."""
         if measure.lower() == 'buys':
             measure_per_step = self.buy_tracker
@@ -320,7 +327,7 @@ class BuyerEnvironment(gym.Env):
         measure_per_step = measure_per_step[:self.counter]
         
         f, ax = plt.subplots()
-        plt.title(f'{measure} per time step')
+        plt.title(f'{measure} per time step ({dataset})')
         plt.xlabel('Time step')
         plt.ylabel('Price of product')
         plt.plot(measure_per_step[:, 0], self.df_y.loc[measure_per_step[:, 0], 'y'], linewidth=0.1)
@@ -333,12 +340,14 @@ class BuyerEnvironment(gym.Env):
         """Turn saving on or off."""
         self.save_results = saving_mode
     
-def run_simulation(env, model, simsteps, plot=False):
+def run_simulation(env, model, test_df, dataset, simsteps, plot=False):
     """Run simulation of trained model."""
     if plot:
         env.env_method('set_saving', saving_mode=True)
     
     obs = env.reset()
+    env.env_method('enable_simulation_dataset', test_df)
+
     for i in range(simsteps):
         action, _states = model.predict(obs)
         obs, rewards, done, info = env.step(action)
@@ -350,7 +359,7 @@ def run_simulation(env, model, simsteps, plot=False):
     env.render()
     
     if plot:
-        utils.plot_results(env=env)
+        utils.plot_results(env=env, dataset=dataset)
     return env
 
 def run_baseline_simulation(env, action, steps=1000):
@@ -366,32 +375,31 @@ def run_baseline_simulation(env, action, steps=1000):
     return env
 
 
-def train_and_simulate(args, df, ts_feature_names, properties, verbose=20):
+def train_and_simulate(args, train_df, test_df, ts_feature_names, properties, verbose=20):
     # setup vectorized env and model
-    env = DummyVecEnv([lambda: BuyerEnvironment(args, df, properties, ts_feature_names)])
+    env = DummyVecEnv([lambda: BuyerEnvironment(args, train_df, properties, ts_feature_names)])
     model = PPO('MultiInputPolicy', env, verbose=verbose, learning_rate=0.01) #$TODO set verbose back to 20
 
     # train model
     utils.run_and_track_runtime(model.learn, total_timesteps=args.trainsteps)
-
-    # carry out simulation
-    env = run_simulation(env, model, simsteps=args.simsteps, plot=args.plot)
-    results_dict = env.env_method('return_results')[0]
-        
-    # run baseline: buying consumption rate
+    
+    # carry out simulation with train_set + run baseline
+    env = run_simulation(env, model, train_df, 'train', simsteps=len(train_df), plot=args.plot)
+    results_dict_train = env.env_method('return_results')[0]
     env = run_baseline_simulation(env=env, action=properties['consumption_rate']/properties['upper_buy_limit'], steps=args.simsteps)
-    results_dict_baseline = env.env_method('return_results')[0]
+    results_dict_baseline_train = env.env_method('return_results')[0]
+    
+    # carry out simulation with test_set + run baseline
+    env = run_simulation(env, model, test_df, 'test', simsteps=len(test_df), plot=args.plot)
+    results_dict_test = env.env_method('return_results')[0]
+    env = run_baseline_simulation(env=env, action=properties['consumption_rate']/properties['upper_buy_limit'], steps=args.simsteps)
+    results_dict_baseline_test = env.env_method('return_results')[0]
 
-    return results_dict, results_dict_baseline
+    return results_dict_train, results_dict_test, results_dict_baseline_train, results_dict_baseline_test
 
 if __name__ == '__main__':
     args = utils.parse_config()
     utils.create_logger_and_set_level(args.verbose)
-
-    df = pd.read_csv('./data/US_SMP_food_TA.csv', index_col=0).iloc[69:].reset_index(drop=True).sort_values('ds')
-    ts_feature_names = \
-        ["y", "y_24_quo", "y_26_quo", "y_37_quo", "y_94_quo", "y_20_quo", "y_6_quo", "y_227_pro", "y_785_end",
-        "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band", "momentum1", "kalman"]
         
     # define buyer properties
     properties = {
@@ -404,11 +412,23 @@ if __name__ == '__main__':
         'cash_inflow': 6400000, # ±3200 product
         'upper_buy_limit': 10000
     }
-
-    results_dict, results_dict_baseline = train_and_simulate(args, df, ts_feature_names, properties)
     
-    print(f"Total worth (incl inventory) agent butter: {results_dict['total_worth']:.2f}")
-    print(f"Total worth (incl inventory) baseline: {results_dict_baseline['total_worth']:.2f}")
+    df = pd.read_csv('./data/US_SMP_food_TA.csv', index_col=0).iloc[69:].reset_index(drop=True).sort_values('ds')
+    ts_feature_names = \
+        ["y", "y_24_quo", "y_26_quo", "y_37_quo", "y_94_quo", "y_20_quo", "y_6_quo", "y_227_pro", "y_785_end",
+        "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band", "momentum1", "kalman"]
 
-    print(f"Total worth improvement over baseline: {(results_dict['total_worth']-results_dict_baseline['total_worth'])/results_dict_baseline['total_worth']*100:.4f}%")
+    train_fraction = .75
+    train_df = df.iloc[:round(train_fraction*len(df))]
+    test_df = df.iloc[round(train_fraction*len(df)):].reset_index(drop=True)
+    
+    results_dict_train, results_dict_test, results_dict_baseline_train, results_dict_baseline_test = train_and_simulate(args, train_df, test_df, ts_feature_names, properties)
+    
+    print(f"Total worth (incl inventory) agent butter (train): {results_dict_train['total_worth']:.2f}")
+    print(f"Total worth (incl inventory) baseline (train): {results_dict_baseline_train['total_worth']:.2f}")
+    print(f"Total worth improvement over baseline (train): {(results_dict_train['total_worth']-results_dict_baseline_train['total_worth'])/results_dict_baseline_train['total_worth']*100:.4f}%")
+
+    print(f"Total worth (incl inventory) agent butter (test): {results_dict_test['total_worth']:.2f}")
+    print(f"Total worth (incl inventory) baseline (test): {results_dict_baseline_test['total_worth']:.2f}")
+    print(f"Total worth improvement over baseline (test): {(results_dict_test['total_worth']-results_dict_baseline_test['total_worth'])/results_dict_baseline_test['total_worth']*100:.4f}%")
     plt.show()
