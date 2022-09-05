@@ -44,6 +44,6 @@ Enables plotting of rewards, inventory, actions of the simulation after training
 Note: the run will continue comparing against a baseline after the plots are closed.
 
 #### --trainsteps, -t
-Determines the number of training steps, default is 40000 which takes ±1 minute. Running longer (<10min) is recommended for better results.
+Determines the number of training steps, default is 40000 which takes ±1 minute. Running longer (>10min) is recommended for better results.
 
 
