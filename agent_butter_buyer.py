@@ -183,11 +183,11 @@ class BuyerEnvironment(gym.Env):
         current_price = self.df_y.loc[self.current_step, "y"]
         next_week_price = self.df_y.loc[self.current_step + 1, "y"]
         price_profit = next_week_price - current_price
-        buy_priceprofit_reward = price_profit * action / self.upper_buy_limit / self.price_diff_scaler #NOTE maybe product_bought better than action, test
+        buy_priceprofit_reward = price_profit * self.product_bought / self.upper_buy_limit / self.price_diff_scaler #NOTE maybe product_bought better than action, test
 
-        # punishment for missed price opportunity
-        buy_amount_weight = (0.3 - action / self.upper_buy_limit)
-        missed_opportunity_reward = price_profit / (1 + action / self.upper_buy_limit) / self.price_diff_scaler * buy_amount_weight
+        # punishment for missed price opportunity  
+        buy_amount_weight = ((self.consumption_rate - self.product_bought) / self.upper_buy_limit)
+        missed_opportunity_reward = price_profit / (1 + self.product_bought / self.upper_buy_limit) / self.price_diff_scaler * buy_amount_weight
 
         logger.debug(f'current price: {current_price}')
         logger.debug(f'next week price: {next_week_price}')
@@ -214,7 +214,7 @@ class BuyerEnvironment(gym.Env):
             logger.debug('Under 0 inventory: -1')
 
         # punishment for buy action too large for storage or cash limits
-        if action_buy_amount > self.cash_buy_limit or action > self.storage_buy_limit:
+        if action_buy_amount > self.cash_buy_limit or action_buy_amount > self.storage_buy_limit:
             action_over_limit_reward = 1
             logger.debug('Action over buy/storage limits: -1')
 
