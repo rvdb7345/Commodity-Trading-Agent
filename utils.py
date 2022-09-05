@@ -20,6 +20,8 @@ def parse_config():
                         help='training steps, 40.000 steps takes ±1 min')
     parser.add_argument('--simsteps', '-s', default=1000, type=int,
                         help='simulation steps')
+    parser.add_argument('--reps', '-r', default=30, type=int,
+                        help='Number of train/sim repetitions for experiment')
     args = vars(parser.parse_known_args()[0])
     args = SimpleNamespace(**args)
     return args
