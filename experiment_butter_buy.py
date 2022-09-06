@@ -56,8 +56,8 @@ if __name__ == '__main__':
         print(f'\nEvaluating for {dataset} set')
         experiment_results[f'improvement_{dataset}'] = (experiment_results[f'total_worth_model_{dataset}']-experiment_results[f'total_worth_baseline_{dataset}'])/experiment_results[f'total_worth_baseline_{dataset}']*100
         
-        print(f"Experiment improvement over baseline mean: {experiment_results[f'improvement_{dataset}'].mean()}")
-        print(f"Experiment improvement over baseline std: {experiment_results[f'improvement_{dataset}'].std()}")
+        print(f"Experiment improvement over baseline mean: {experiment_results[f'improvement_{dataset}'].mean():.2f}%")
+        print(f"Experiment improvement over baseline std: {experiment_results[f'improvement_{dataset}'].std():.2f}%")
         
         w, p = wilcoxon(experiment_results[f'improvement_{dataset}'], alternative='greater')
         
@@ -65,11 +65,10 @@ if __name__ == '__main__':
         print(f"\nWilcoxon test on the {dataset} results")
         print(f"H0: model performance = baseline performance")
         print(f"H1: model performance > baseline performance")
-        print(f"Test p-value: {p}")
+        print(f"Test p-value: {p:.2f}%")
         if p <= 0.05:
             print("H0 is rejected, model performance is better than the baseline")
         else:
             print("H0 cannot be rejected, the model is NOT significantly better than the baseline")
     
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None): 
-        print(experiment_results)
+    print(experiment_results.round(2))
