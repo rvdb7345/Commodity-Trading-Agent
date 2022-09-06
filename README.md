@@ -57,6 +57,9 @@ To evaluate the robustness of the RL algorithm, `experiment_butter_buy.py` can b
 simulation of the model and then evaluates the significance of the difference between train and test scores and their 
 baselines through Wilcoxon sign tests (pairwise is necessary because every simulation starts at different steps for now).
 
+#### command line example
+`python experiment_butter_buy.py -t 40000 -r 30`
+
 #### --reps [int], -r [int]
 Determines the number of experiment repetitions to estimate the robustness of the RL algorithm training.
 
