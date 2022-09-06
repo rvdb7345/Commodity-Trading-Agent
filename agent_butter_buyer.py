@@ -111,9 +111,6 @@ class BuyerEnvironment(gym.Env):
     def enable_simulation_dataset(self, test_df):
         self.df_y = test_df[['y']]
         self.df = self.data_scaler(test_df)
-        
-        self.current_step = 0
-        self.start_step = self.current_step
 
         
     def _next_observation(self) -> dict:
@@ -340,13 +337,13 @@ class BuyerEnvironment(gym.Env):
         """Turn saving on or off."""
         self.save_results = saving_mode
     
-def run_simulation(env, model, test_df, dataset, simsteps, plot=False):
+def run_simulation(env, model, df, dataset, simsteps, plot=False):
     """Run simulation of trained model."""
     if plot:
         env.env_method('set_saving', saving_mode=True)
     
+    env.env_method('enable_simulation_dataset', df)
     obs = env.reset()
-    env.env_method('enable_simulation_dataset', test_df)
 
     for i in range(simsteps):
         action, _states = model.predict(obs)
@@ -386,13 +383,13 @@ def train_and_simulate(args, train_df, test_df, ts_feature_names, properties, ve
     # carry out simulation with train_set + run baseline
     env = run_simulation(env, model, train_df, 'train', simsteps=len(train_df), plot=args.plot)
     results_dict_train = env.env_method('return_results')[0]
-    env = run_baseline_simulation(env=env, action=properties['consumption_rate']/properties['upper_buy_limit'], steps=args.simsteps)
+    env = run_baseline_simulation(env=env, action=properties['consumption_rate']/properties['upper_buy_limit'], steps=len(train_df))
     results_dict_baseline_train = env.env_method('return_results')[0]
     
     # carry out simulation with test_set + run baseline
     env = run_simulation(env, model, test_df, 'test', simsteps=len(test_df), plot=args.plot)
     results_dict_test = env.env_method('return_results')[0]
-    env = run_baseline_simulation(env=env, action=properties['consumption_rate']/properties['upper_buy_limit'], steps=args.simsteps)
+    env = run_baseline_simulation(env=env, action=properties['consumption_rate']/properties['upper_buy_limit'], steps=len(test_df))
     results_dict_baseline_test = env.env_method('return_results')[0]
 
     return results_dict_train, results_dict_test, results_dict_baseline_train, results_dict_baseline_test
