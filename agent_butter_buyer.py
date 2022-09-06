@@ -361,7 +361,7 @@ def run_simulation(env, model, df, dataset, simsteps, plot=False):
 
 def run_baseline_simulation(env, action, steps=1000):
     """Run baseline simulation."""
-    logging.getLogger('logger').setLevel(logging.INFO)
+    # logging.getLogger('logger').setLevel(logging.INFO)
 
     obs = env.env_method('baseline_reset')
     for i in range(steps):

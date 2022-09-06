@@ -12,7 +12,7 @@ logger = logging.getLogger('logger')
 def parse_config():
     """Config parser."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('--verbose', '-v', nargs='?', const='info', type=str, default='info',
+    parser.add_argument('--verbose', '-v', nargs='?', const='info', type=str, default='critical',
                         help='Print extra info, levels: debug, info, warning, critical, error')
     parser.add_argument('--plot', '-p', action='store_true', default=False, 
                         help='plot results')
