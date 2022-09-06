@@ -1,3 +1,5 @@
+from datetime import datetime 
+import os
 import pandas as pd
 import utils
 
@@ -10,6 +12,10 @@ from tqdm import tqdm
 if __name__ == '__main__':
     args = utils.parse_config()
     utils.create_logger_and_set_level(args.verbose)
+    
+    # prep file to save results
+    results_file_name = datetime.now().strftime("%Y%m%d_%H%M") + '_experiment_results.csv'
+    file_dir = os.path.join('results/', results_file_name)
     
     # define buyer properties
     properties = {
@@ -32,7 +38,7 @@ if __name__ == '__main__':
         ["y", "y_24_quo", "y_26_quo", "y_37_quo", "y_94_quo", "y_20_quo", "y_6_quo", "y_227_pro", "y_785_end",
         "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band", "momentum1", "kalman"]
 
-    experiment_results = pd.DataFrame(columns=['model_results_train', 'baseline_results_train', 'model_results_test', 'baseline_results_test'], index=list(range(args.reps)))
+    experiment_results = pd.DataFrame(columns=['total_worth_model_train', 'total_worth_baseline_train', 'total_worth_model_test', 'total_worth_baseline_test'], index=list(range(args.reps)))
     for rep_id in tqdm(range(args.reps)):
         results_dict_train, \
             results_dict_test, \
@@ -42,11 +48,13 @@ if __name__ == '__main__':
         experiment_results.loc[rep_id,:] = [results_dict_train['total_worth'], results_dict_baseline_train['total_worth'], \
                                             results_dict_test['total_worth'], results_dict_baseline_test['total_worth']]
         
+        # save intermediate results to not lose progress
+        experiment_results.to_csv(file_dir, mode='w', header=True, index=False)
 
 
     for dataset in ['train', 'test']:
         print(f'\nEvaluating for {dataset} set')
-        experiment_results[f'improvement_{dataset}'] = (experiment_results[f'model_results_{dataset}']-experiment_results[f'baseline_results_{dataset}'])/experiment_results[f'baseline_results_{dataset}']*100
+        experiment_results[f'improvement_{dataset}'] = (experiment_results[f'total_worth_model_{dataset}']-experiment_results[f'total_worth_baseline_{dataset}'])/experiment_results[f'total_worth_baseline_{dataset}']*100
         
         print(f"Experiment improvement over baseline mean: {experiment_results[f'improvement_{dataset}'].mean()}")
         print(f"Experiment improvement over baseline std: {experiment_results[f'improvement_{dataset}'].std()}")
