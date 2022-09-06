@@ -16,7 +16,9 @@ For Mac:
 ```commandline
 brew install open-mpi
 ```
-As outlined in the documentation of mpi4py (for which open-mpi is needed), check if the mpicc compiler wrapper is on your search path by running `echo $PATH`. If not, add it by running `export PATH=$PATH:~/path/to/mpicc` for mac users the path is something like: "opt/homebrew/bin/mpicc"
+As outlined in the documentation of mpi4py (for which open-mpi is needed), check if the mpicc compiler wrapper is on 
+your search path by running `echo $PATH`. If not, add it by running `export PATH=$PATH:~/path/to/mpicc` for mac users 
+the path is something like: "opt/homebrew/bin/mpicc"
 
 For ubuntu:
 ```commandline
@@ -32,18 +34,29 @@ Now all requirements should be installed. Installation can also go through insta
 (if kept up-to-date).
 
 ### Running
-All code for running our agent butter buyer can be found in `agent_butter_buyer.py`. Running this file will now use the PPO actor-critic model from the stable baselines package and compare results with a simple baseline (buy what is needed every week).
+All code for running our agent butter buyer can be found in `agent_butter_buyer.py`. Running this file will now use the 
+PPO actor-critic model from the stable baselines package and compare results with a simple baseline 
+(baseline strategy: buy what is needed every week).
 
 ### Flags
-#### --verbose, -v
-This flag can be used to set the logger level, by default this is set to `info` level which logs basic information on training and simulating step. The `debug` level shows multiple measures/rewards per step, this is enabled by running:
+#### --verbose [str], -v [str]
+This flag can be used to set the logger level, by default this is set to `info` level which logs basic information on 
+training and simulating step. The `debug` level shows multiple measures/rewards per step, this is enabled by running:
 ```python agent_butter_buyer.py -v "debug"```
 
 #### --plot, -p
 Enables plotting of rewards, inventory, actions of the simulation after training.
-Note: the run will continue comparing against a baseline after the plots are closed.
 
-#### --trainsteps, -t
-Determines the number of training steps, default is 40000 which takes ±1 minute. Running longer (>10min) is recommended for better results.
+#### --trainsteps [int], -t [int]
+Determines the number of training steps, default is 40000 which takes ±1 minute. Running longer (>10min) is 
+recommended for better results.
 
+
+### Evaluating the algorithm
+To evaluate the robustness of the RL algorithm, `experiment_butter_buy.py` can be used. It repeats the training and 
+simulation of the model and then evaluates the significance of the difference between train and test scores and their 
+baselines through Wilcoxon sign tests (pairwise is necessary because every simulation starts at different steps for now).
+
+#### --reps [int], -r [int]
+Determines the number of experiment repetitions to estimate the robustness of the RL algorithm training.
 
