@@ -375,7 +375,7 @@ def run_baseline_simulation(env, action, steps=1000):
 def train_and_simulate(args, train_df, test_df, ts_feature_names, properties, verbose=20):
     # setup vectorized env and model
     env = DummyVecEnv([lambda: BuyerEnvironment(args, train_df, properties, ts_feature_names)])
-    model = PPO('MultiInputPolicy', env, verbose=verbose, learning_rate=0.01) #$TODO set verbose back to 20
+    model = PPO('MultiInputPolicy', env, verbose=verbose, learning_rate=0.01)
 
     # train model
     utils.run_and_track_runtime(model.learn, total_timesteps=args.trainsteps)
