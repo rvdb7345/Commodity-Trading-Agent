@@ -70,3 +70,6 @@ if __name__ == '__main__':
             print("H0 is rejected, model performance is better than the baseline")
         else:
             print("H0 cannot be rejected, the model is NOT significantly better than the baseline")
+    
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None): 
+        print(experiment_results)
