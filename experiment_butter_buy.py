@@ -3,7 +3,7 @@ import utils
 
 from agent_butter_buyer import train_and_simulate
 from scipy.stats import wilcoxon
-
+from tqdm import tqdm
 
 if __name__ == '__main__':
     args = utils.parse_config()
@@ -26,9 +26,13 @@ if __name__ == '__main__':
         'upper_buy_limit': 10000
     }
 
+    train_fraction = .75
+    train_df = df.iloc[:round(train_fraction*len(df))]
+    test_df = df.iloc[round(train_fraction*len(df)):].reset_index(drop=True)
+
     experiment_results = pd.DataFrame(columns=['model_results', 'baseline_results'], index=list(range(args.reps)))
-    for rep_id in range(args.reps):
-        results_dict, results_dict_baseline = train_and_simulate(args, df, ts_feature_names, properties, verbose=False)
+    for rep_id in tqdm(range(args.reps)):
+        results_dict, results_dict_baseline = train_and_simulate(args, train_df, test_df, ts_feature_names, properties, verbose=False)
 
         experiment_results.loc[rep_id,:] = [results_dict['total_worth'], results_dict_baseline['total_worth']]
         print(f'\nExperiment {rep_id}')

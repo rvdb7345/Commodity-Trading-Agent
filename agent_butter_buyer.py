@@ -24,6 +24,9 @@ logger = logging.getLogger('logger')
 MAX_STEPS = 20000
 INITIAL_ACCOUNT_BALANCE = 10000000
 
+VESPER_cmap = np.loadtxt('vesper_color_map.txt')
+cm = colors.ListedColormap(VESPER_cmap/255.0)
+
 class BuyerEnvironment(gym.Env):
     """A stock trading environment for OpenAI gym"""
     metadata = {'render.modes': ['human']}
@@ -48,7 +51,7 @@ class BuyerEnvironment(gym.Env):
         self.lookback_period = 26
         # self.observation_space = spaces.Box(low=0, high=1, shape=(21, self.lookback_period + 1), dtype=np.float16)
         self.observation_space = spaces.Dict({
-            'time_series': spaces.Box(low=0, high=np.inf, shape=(20, self.lookback_period)),
+            'time_series': spaces.Box(low=0, high=np.inf, shape=(len(ts_feature_names), self.lookback_period)),
             'env_props': spaces.Box(low=0, high=1, shape=(5,))
         })
 
@@ -98,7 +101,7 @@ class BuyerEnvironment(gym.Env):
         self.reset_values()
         
         # Set the current step to a random point within the data frame
-        self.current_step = random.randint(0, len(self.df.loc[:, 'y'].values) - (self.lookback_period + 1))
+        self.current_step = 0
         self.start_step = self.current_step
 
         return self._next_observation()
@@ -323,14 +326,36 @@ class BuyerEnvironment(gym.Env):
         # cut off all trailing zeros
         measure_per_step = measure_per_step[:self.counter]
         
-        f, ax = plt.subplots()
+        f, ax = plt.subplots(figsize=(10, 6))
         plt.title(f'{measure} per time step ({dataset})')
         plt.xlabel('Time step')
         plt.ylabel('Price of product')
         plt.plot(measure_per_step[:, 0], self.df_y.loc[measure_per_step[:, 0], 'y'], linewidth=0.1)
         points = ax.scatter(measure_per_step[:, 0], self.df_y.loc[measure_per_step[:, 0], 'y'],
-                            marker='o', c=measure_per_step[:, 1], cmap=cmap, norm=norm)
+                            marker='o', c=measure_per_step[:, 1], cmap=cm, norm=norm)
         f.colorbar(points)
+        ax.set_facecolor('#D0D8E6')
+        plt.tight_layout()
+        plt.savefig(f'{measure}_colour_{dataset}.png', dpi=300)
+
+
+        fig = plt.figure(figsize=(10, 6))
+        ax = fig.add_subplot(111)
+        plt.title(f'{measure} per time step ({dataset})')
+        plt.xlabel('Time step')
+        plt.ylabel('Price of product')
+        lns1 = ax.plot(measure_per_step[:, 0], self.df_y.loc[measure_per_step[:, 0], 'y'], linewidth=1, label='price',
+                color='black')
+        ax2 = ax.twinx()
+        lns2 = ax2.plot(measure_per_step[:, 0], measure_per_step[:, 1], linewidth=1, label=measure, color='red', alpha=0.5)
+        ax.set_facecolor('#D0D8E6')
+        ax2.set_ylabel(f'{measure}')
+        lns = lns1 + lns2
+        labs = [l.get_label() for l in lns]
+        plt.legend(lns, labs)
+        plt.grid()
+        plt.tight_layout()
+        plt.savefig(f'{measure}_lines_{dataset}.png', dpi=300)
 
 
     def set_saving(self, saving_mode=False):
@@ -345,7 +370,7 @@ def run_simulation(env, model, df, dataset, simsteps, plot=False):
     env.env_method('enable_simulation_dataset', df)
     obs = env.reset()
 
-    for i in range(simsteps):
+    for i in range(simsteps-26):
         action, _states = model.predict(obs)
         obs, rewards, done, info = env.step(action)
         if i % 200 == 0:
@@ -412,7 +437,7 @@ if __name__ == '__main__':
     
     df = pd.read_csv('./data/US_SMP_food_TA.csv', index_col=0).iloc[69:].reset_index(drop=True).sort_values('ds')
     ts_feature_names = \
-        ["y", "y_24_quo", "y_26_quo", "y_37_quo", "y_94_quo", "y_20_quo", "y_6_quo", "y_227_pro", "y_785_end",
+        ["y",
         "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band", "momentum1", "kalman"]
 
     train_fraction = .75
