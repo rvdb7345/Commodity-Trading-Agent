@@ -1,5 +1,7 @@
-"""File containing the first draft of the Buyer Agent.
-Created for the R&D C7 - RL trading agent project.
+"""File containing the Reinforcement Learning based Buyer Agent.
+
+Created by Vesper in cooperation with Slimmmer AI.
+https://www.vespertool.com/
 """
 from typing import Union
 import gym
@@ -24,8 +26,9 @@ logger = logging.getLogger('logger')
 MAX_STEPS = 20000
 INITIAL_ACCOUNT_BALANCE = 10000000
 
-VESPER_cmap = np.loadtxt('vesper_color_map.txt')
-cm = colors.ListedColormap(VESPER_cmap/255.0)
+VESPER_cmap = np.loadtxt('colormaps/vesper_color_map.txt')
+cm = colors.ListedColormap(VESPER_cmap / 255.0)
+
 
 class BuyerEnvironment(gym.Env):
     """A stock trading environment for OpenAI gym"""
@@ -49,7 +52,6 @@ class BuyerEnvironment(gym.Env):
         self.action_space = spaces.Box(low=0, high=1, shape=(1,))
 
         self.lookback_period = 26
-        # self.observation_space = spaces.Box(low=0, high=1, shape=(21, self.lookback_period + 1), dtype=np.float16)
         self.observation_space = spaces.Dict({
             'time_series': spaces.Box(low=0, high=np.inf, shape=(len(ts_feature_names), self.lookback_period)),
             'env_props': spaces.Box(low=0, high=1, shape=(5,))
@@ -68,16 +70,16 @@ class BuyerEnvironment(gym.Env):
 
         # parameters
         self.upper_buy_limit = properties['upper_buy_limit']
-        self.price_diff_scaler = 10 # price difference on range [0, 50]
+        self.price_diff_scaler = 10  # price difference on range [0, 50]
 
-    def data_scaler(self, df):     
+    def data_scaler(self, df):
+        """Function to scale the time series data for input into the agent."""
         scale_columns = np.setdiff1d(df.columns.values, ['ds'])
         df_to_scale = df[scale_columns]
-        df_scaled = (df_to_scale-df_to_scale.min())/(df_to_scale.max()-df_to_scale.min())*2 - 1
+        df_scaled = (df_to_scale - df_to_scale.min()) / (df_to_scale.max() - df_to_scale.min()) * 2 - 1
         df_scaled.insert(0, 'ds', df.ds)
         return df_scaled
-        
-        
+
     def reset_values(self):
         """Reset simulation values to starting values."""
         self.balance = INITIAL_ACCOUNT_BALANCE
@@ -85,13 +87,13 @@ class BuyerEnvironment(gym.Env):
         self.total_spent_value = 0
         self.counter = 0
         self.current_inventory = pd.DataFrame(columns=['time_in_storage', 'amount'], dtype=float)
-        self.current_inventory.loc[self.counter] = [0, self.min_inventory_threshold*6]
+        self.current_inventory.loc[self.counter] = [0, self.min_inventory_threshold * 6]
 
         if self.save_results:
             self.reward_tracker = np.zeros((100000, 2))
             self.buy_tracker = np.zeros((100000, 2))
             self.inventory_tracker = np.zeros((100000, 2))
-            
+
     def reset(self) -> dict:
         """Reset the state of the environment to an initial state.
 
@@ -99,23 +101,23 @@ class BuyerEnvironment(gym.Env):
             Initial observation to start with
         """
         self.reset_values()
-        
+
         # Set the current step to a random point within the data frame
         self.current_step = 0
         self.start_step = self.current_step
 
         return self._next_observation()
-    
+
     def baseline_reset(self) -> dict:
         """Prepare class for baseline simulation."""
         self.current_step = self.start_step
         self.reset_values()
 
     def enable_simulation_dataset(self, test_df):
+        """Prepare the class for the test set."""
         self.df_y = test_df[['y']]
         self.df = self.data_scaler(test_df)
 
-        
     def _next_observation(self) -> dict:
         """Create observation dictionary with all features.
 
@@ -125,7 +127,7 @@ class BuyerEnvironment(gym.Env):
         current_price = self.df_y.loc[self.current_step, "y"]
         self.cash_buy_limit = int(self.balance / current_price)
         self.storage_buy_limit = self.storage_capacity - self.current_inventory['amount'].sum()
-        
+
         self.min_buy_need = self.min_inventory_threshold - self.current_inventory['amount'].sum()
         self.min_buy_need = max([0, self.min_buy_need])
 
@@ -136,13 +138,13 @@ class BuyerEnvironment(gym.Env):
                 for feat_name in self.ts_feature_names
             ],
             'env_props': [
-                self.balance/100000000000,
-                self.current_inventory['amount'].sum()/self.storage_capacity,
-                min([self.cash_buy_limit/self.storage_capacity, 1]),
-                self.storage_buy_limit/self.storage_capacity,
-                self.min_buy_need/self.min_inventory_threshold
-        ]}
-        
+                self.balance / 100000000000,
+                self.current_inventory['amount'].sum() / self.storage_capacity,
+                min([self.cash_buy_limit / self.storage_capacity, 1]),
+                self.storage_buy_limit / self.storage_capacity,
+                self.min_buy_need / self.min_inventory_threshold
+            ]}
+
         logger.debug(f"Env variables [balance, inventory, cash_buy_lim, storage_buy_lim]")
         logger.debug(f"scaled values {['%.5f' % value for value in frame['env_props']]}")
         return frame
@@ -162,21 +164,11 @@ class BuyerEnvironment(gym.Env):
         self.reward_tracker[self.counter] = np.array([self.current_step, reward])
         self.inventory_tracker[self.counter] = np.array([self.current_step, self.current_inventory['amount'].sum()])
 
-
     def step(self, action: float) -> Union[dict, float, bool, dict]:
-        """Take the next action and update state and rewards."""
-        logger.debug("---------------")
-        logger.debug(f'Step: {self.current_step}')
+        """Take the next action and update state and rewards.
 
-        # multiply action [-1,1] by upper_buy_limit factor (works better with NN model)
-        action_buy_amount = action[0]*self.upper_buy_limit
-        self._take_action(action_buy_amount)
+        Composition of rewards function:
 
-        # make sure the current step does not move past the end of the ts
-        self.current_step += 1
-        if self.current_step > len(self.df.loc[:, 'y'].values) - self.lookback_period:
-            self.current_step = 0
-        '''
         reward
         - buy at the right price
         punish
@@ -184,61 +176,79 @@ class BuyerEnvironment(gym.Env):
         - spoilage
         - inventory below threshold
         - action higher than storage/cash limit
-        '''
+        """
+        logger.debug("---------------")
+        logger.debug(f'Step: {self.current_step}')
+
+        # multiply action in range [0,1] by upper_buy_limit factor (works better with NN model)
+        action_buy_amount = action[0] * self.upper_buy_limit
+        self._take_action(action_buy_amount)
+
+        # make sure the current step does not move past the end of the ts
+        self.current_step += 1
+        if self.current_step > len(self.df.loc[:, 'y'].values) - self.lookback_period:
+            self.current_step = 0
+
         inv_under_min_reward = 0
         action_over_limit_reward = 0
 
         # reward buying at the correct price point
         current_price = self.df_y.loc[self.current_step, "y"]
-        min_price_next_weeks = self.df_y.loc[self.current_step + 1:self.current_step + self.product_shelf_life, "y"].min()
+        min_price_next_weeks = self.df_y.loc[self.current_step + 1:self.current_step + self.product_shelf_life,
+                               "y"].min()
         price_profit = min_price_next_weeks - current_price
         buy_priceprofit_reward = price_profit * self.product_bought / self.upper_buy_limit / self.price_diff_scaler
 
         # punishment for missed price opportunity  
         buy_amount_weight = ((self.consumption_rate - self.product_bought) / self.upper_buy_limit)
-        missed_opportunity_reward = price_profit / (1 + self.product_bought / self.upper_buy_limit) / self.price_diff_scaler * buy_amount_weight
+        missed_opportunity_reward = price_profit / (
+                    1 + self.product_bought / self.upper_buy_limit) / self.price_diff_scaler * buy_amount_weight
 
-        logger.debug(f'current price: {current_price}')
-        logger.debug(f'Min price coming {self.product_shelf_life} weeks: {min_price_next_weeks}')
-        logger.debug(f'The price profit reward: {buy_priceprofit_reward}')
-        logger.debug(f'The missed opportunity reward: {-missed_opportunity_reward}')
-        
         # punishment for spoilage + update inventory
         sum_spoiled_product = self.current_inventory.loc[self.current_inventory['time_in_storage'] >
                                                          self.product_shelf_life, 'amount'].sum()
         spoil_reward = sum_spoiled_product / 1000
-        logger.debug(f'The spoiled product reward: {-spoil_reward}')
-        
+
+        # remove spoiled product
         self.current_inventory = self.current_inventory.loc[self.current_inventory['time_in_storage'] <=
                                                             self.product_shelf_life]
 
         # punishment for emergency buy to reach inventory threshold
         if self.min_buy_need > action_buy_amount:
-            inv_under_min_reward = 3 
+            inv_under_min_reward = 3
             logger.debug(f'Emergency buy reward (to reach min inventory): -{inv_under_min_reward}')
-            
+
         # punishment for buy action too large for storage or cash limits
         if action_buy_amount > self.cash_buy_limit or action_buy_amount > self.storage_buy_limit:
             action_over_limit_reward = 2
             logger.debug('Action over buy/storage limits: -1')
-        
+
         # calculate total reward
-        reward = buy_priceprofit_reward - missed_opportunity_reward - spoil_reward - inv_under_min_reward - action_over_limit_reward
-        logger.debug(f'Reward {reward}')
-        logger.debug(f'New inventory: {self.current_inventory["amount"].sum()}')
-        
+        reward = buy_priceprofit_reward - missed_opportunity_reward - spoil_reward - \
+                 inv_under_min_reward - action_over_limit_reward
+
         if self.save_results:
             self.update_measure_tracker(action_buy_amount, reward)
-        
+
         # generate next observation
         obs = self._next_observation()
 
+        # stop the simulation if we have negative balance
         done = False
         if self.balance < 0:
             done = True
-        
-        self.counter += 1
+
+        # increase the time in inventory
         self.current_inventory['time_in_storage'] = self.current_inventory['time_in_storage'] + 1
+        self.counter += 1
+
+        logger.debug(f'current price: {current_price}')
+        logger.debug(f'Min price coming {self.product_shelf_life} weeks: {min_price_next_weeks}')
+        logger.debug(f'The price profit reward: {buy_priceprofit_reward}')
+        logger.debug(f'The missed opportunity reward: {-missed_opportunity_reward}')
+        logger.debug(f'The spoiled product reward: {-spoil_reward}')
+        logger.debug(f'Reward {reward}')
+        logger.debug(f'New inventory: {self.current_inventory["amount"].sum()}')
 
         return obs, reward, done, {}
 
@@ -298,16 +308,16 @@ class BuyerEnvironment(gym.Env):
         logger.info(f'Total spent value: {self.total_spent_value}')
 
     def return_results(self):
-        """Return end results of a simulation."""        
+        """Return end results of a simulation."""
         current_inventory = self.current_inventory["amount"].sum()
-                
+
         results_dict = {}
         results_dict['current_inventory'] = current_inventory
         results_dict['total_worth'] = self.balance + current_inventory * self.df_y.loc[self.current_step, "y"]
         results_dict['balance'] = self.balance
         results_dict['total_spent_value'] = self.total_spent_value
         return results_dict
-        
+
     def plot_measure(self, measure='buys', dataset='test'):
         """Plot the behaviour of the buyer agent."""
         if measure.lower() == 'buys':
@@ -322,10 +332,10 @@ class BuyerEnvironment(gym.Env):
             measure_per_step = self.inventory_tracker
             cmap = 'RdYlGn'
             norm = None
-        
+
         # cut off all trailing zeros
         measure_per_step = measure_per_step[:self.counter]
-        
+
         f, ax = plt.subplots(figsize=(10, 6))
         plt.title(f'{measure} per time step ({dataset})')
         plt.xlabel('Time step')
@@ -338,16 +348,16 @@ class BuyerEnvironment(gym.Env):
         plt.tight_layout()
         plt.savefig(f'figures/{measure}_colour_{dataset}.png', dpi=300)
 
-
         fig = plt.figure(figsize=(10, 6))
         ax = fig.add_subplot(111)
         plt.title(f'{measure} per time step ({dataset})')
         plt.xlabel('Time step')
         plt.ylabel('Price of product')
         lns1 = ax.plot(measure_per_step[:, 0], self.df_y.loc[measure_per_step[:, 0], 'y'], linewidth=1, label='price',
-                color='black')
+                       color='black')
         ax2 = ax.twinx()
-        lns2 = ax2.plot(measure_per_step[:, 0], measure_per_step[:, 1], linewidth=1, label=measure, color='red', alpha=0.5)
+        lns2 = ax2.plot(measure_per_step[:, 0], measure_per_step[:, 1], linewidth=1, label=measure, color='red',
+                        alpha=0.5)
         ax.set_facecolor('#D0D8E6')
         ax2.set_ylabel(f'{measure}')
         lns = lns1 + lns2
@@ -356,7 +366,6 @@ class BuyerEnvironment(gym.Env):
         plt.grid()
         plt.tight_layout()
         plt.savefig(f'figures/{measure}_lines_{dataset}.png', dpi=300)
-
 
     def set_saving(self, saving_mode=False):
         """Turn saving on or off."""
@@ -367,20 +376,20 @@ def run_simulation(env, model, df, dataset, simsteps, plot=False):
     """Run simulation of trained model."""
     if plot:
         env.env_method('set_saving', saving_mode=True)
-    
+
     env.env_method('enable_simulation_dataset', df)
     obs = env.reset()
 
-    for i in range(simsteps-26):
+    for i in range(simsteps - 26):
         action, _states = model.predict(obs)
         obs, rewards, done, info = env.step(action)
         if i % 200 == 0:
             env.render()
-            
+
     # show results
     logger.info("Model final results:")
     env.render()
-    
+
     if plot:
         utils.plot_results(env=env, dataset=dataset)
     return env
@@ -406,17 +415,19 @@ def train_and_simulate(args, train_df, test_df, ts_feature_names, properties, ve
 
     # train model
     utils.run_and_track_runtime(model.learn, total_timesteps=args.trainsteps)
-    
+
     # carry out simulation with train_set + run baseline
     env = run_simulation(env, model, train_df, 'train', simsteps=len(train_df), plot=args.plot)
     results_dict_train = env.env_method('return_results')[0]
-    env = run_baseline_simulation(env=env, action=properties['consumption_rate']/properties['upper_buy_limit'], steps=len(train_df))
+    env = run_baseline_simulation(env=env, action=properties['consumption_rate'] / properties['upper_buy_limit'],
+                                  steps=len(train_df))
     results_dict_baseline_train = env.env_method('return_results')[0]
-    
+
     # carry out simulation with test_set + run baseline
     env = run_simulation(env, model, test_df, 'test', simsteps=len(test_df), plot=args.plot)
     results_dict_test = env.env_method('return_results')[0]
-    env = run_baseline_simulation(env=env, action=properties['consumption_rate']/properties['upper_buy_limit'], steps=len(test_df))
+    env = run_baseline_simulation(env=env, action=properties['consumption_rate'] / properties['upper_buy_limit'],
+                                  steps=len(test_df))
     results_dict_baseline_test = env.env_method('return_results')[0]
 
     return results_dict_train, results_dict_test, results_dict_baseline_train, results_dict_baseline_test
@@ -425,35 +436,38 @@ def train_and_simulate(args, train_df, test_df, ts_feature_names, properties, ve
 if __name__ == '__main__':
     args = utils.parse_config()
     utils.create_logger_and_set_level(args.verbose)
-        
+
     # define buyer properties
     properties = {
         'product_shelf_life': 52,
         'ordering_cost': 0.1,
-        'storage_capacity': 3000*52,
+        'storage_capacity': 3000 * 52,
         'min_inventory_threshold': 3000,
         'consumption_rate': 3000,
         'storage_cost': 0.2,
-        'cash_inflow': 6400000, # ±3200 product
+        'cash_inflow': 6400000,  # ±3200 product
         'upper_buy_limit': 10000
     }
-    
+
     df = pd.read_csv('./data/US_SMP_food_TA.csv', index_col=0).iloc[69:].reset_index(drop=True).sort_values('ds')
     ts_feature_names = \
         ["y",
-        "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band", "momentum1", "kalman"]
+         "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band", "momentum1", "kalman"]
 
     train_fraction = .75
-    train_df = df.iloc[:round(train_fraction*len(df))]
-    test_df = df.iloc[round(train_fraction*len(df)):].reset_index(drop=True)
-    
-    results_dict_train, results_dict_test, results_dict_baseline_train, results_dict_baseline_test = train_and_simulate(args, train_df, test_df, ts_feature_names, properties)
-    
+    train_df = df.iloc[:round(train_fraction * len(df))]
+    test_df = df.iloc[round(train_fraction * len(df)):].reset_index(drop=True)
+
+    results_dict_train, results_dict_test, results_dict_baseline_train, results_dict_baseline_test = train_and_simulate(
+        args, train_df, test_df, ts_feature_names, properties)
+
     print(f"Total worth (incl inventory) agent butter (train): {results_dict_train['total_worth']:.2f}")
     print(f"Total worth (incl inventory) baseline (train): {results_dict_baseline_train['total_worth']:.2f}")
-    print(f"Total worth improvement over baseline (train): {(results_dict_train['total_worth']-results_dict_baseline_train['total_worth'])/results_dict_baseline_train['total_worth']*100:.4f}%")
+    print(
+        f"Total worth improvement over baseline (train): {(results_dict_train['total_worth'] - results_dict_baseline_train['total_worth']) / results_dict_baseline_train['total_worth'] * 100:.4f}%")
 
     print(f"Total worth (incl inventory) agent butter (test): {results_dict_test['total_worth']:.2f}")
     print(f"Total worth (incl inventory) baseline (test): {results_dict_baseline_test['total_worth']:.2f}")
-    print(f"Total worth improvement over baseline (test): {(results_dict_test['total_worth']-results_dict_baseline_test['total_worth'])/results_dict_baseline_test['total_worth']*100:.4f}%")
+    print(
+        f"Total worth improvement over baseline (test): {(results_dict_test['total_worth'] - results_dict_baseline_test['total_worth']) / results_dict_baseline_test['total_worth'] * 100:.4f}%")
     plt.show()

@@ -1,3 +1,10 @@
+"""This file is used for comparing the agent's performance for different parameters.
+
+
+Created by Vesper in cooperation with Slimmmer AI.
+https://www.vespertool.com/
+"""
+
 import utils
 from datetime import datetime
 import os
@@ -21,7 +28,7 @@ if __name__ == '__main__':
         properties = {
             'product_shelf_life': shelf_life,
             'ordering_cost': 0.1,
-            'storage_capacity': 40000,
+            'storage_capacity': 400000,
             'min_inventory_threshold': 3000,
             'consumption_rate': 3000,
             'storage_cost': 0.2,
