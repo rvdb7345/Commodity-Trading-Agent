@@ -63,3 +63,8 @@ baselines through Wilcoxon sign tests (pairwise is necessary because every simul
 #### --reps [int], -r [int]
 Determines the number of experiment repetitions to estimate the robustness of the RL algorithm training.
 
+### Evaluating the influence of a parameter
+To evaluate the influence of a specific parameter, this repo provides functionality to do sensitivity analysis. This is done in 
+sensitivity_analysis.py. Here, a value span can be given and the base parameters can be changed. 
+Subsequently, you can set the reps and training steps using the appropriate flags and run the analysis using:
+```python sensitivity_analysis.py -t 40000 -r 30```
