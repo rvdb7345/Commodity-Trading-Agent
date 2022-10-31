@@ -336,7 +336,7 @@ class BuyerEnvironment(gym.Env):
         f.colorbar(points)
         ax.set_facecolor('#D0D8E6')
         plt.tight_layout()
-        plt.savefig(f'{measure}_colour_{dataset}.png', dpi=300)
+        plt.savefig(f'figures/{measure}_colour_{dataset}.png', dpi=300)
 
 
         fig = plt.figure(figsize=(10, 6))
@@ -355,13 +355,14 @@ class BuyerEnvironment(gym.Env):
         plt.legend(lns, labs)
         plt.grid()
         plt.tight_layout()
-        plt.savefig(f'{measure}_lines_{dataset}.png', dpi=300)
+        plt.savefig(f'figures/{measure}_lines_{dataset}.png', dpi=300)
 
 
     def set_saving(self, saving_mode=False):
         """Turn saving on or off."""
         self.save_results = saving_mode
-    
+
+
 def run_simulation(env, model, df, dataset, simsteps, plot=False):
     """Run simulation of trained model."""
     if plot:
@@ -384,6 +385,7 @@ def run_simulation(env, model, df, dataset, simsteps, plot=False):
         utils.plot_results(env=env, dataset=dataset)
     return env
 
+
 def run_baseline_simulation(env, action, steps=1000):
     """Run baseline simulation."""
     # logging.getLogger('logger').setLevel(logging.INFO)
@@ -400,7 +402,7 @@ def run_baseline_simulation(env, action, steps=1000):
 def train_and_simulate(args, train_df, test_df, ts_feature_names, properties, verbose=20):
     # setup vectorized env and model
     env = DummyVecEnv([lambda: BuyerEnvironment(args, train_df, properties, ts_feature_names)])
-    model = PPO('MultiInputPolicy', env, verbose=verbose, learning_rate=0.01) #$TODO set verbose back to 20
+    model = PPO('MultiInputPolicy', env, verbose=verbose, learning_rate=0.01)
 
     # train model
     utils.run_and_track_runtime(model.learn, total_timesteps=args.trainsteps)
@@ -419,15 +421,16 @@ def train_and_simulate(args, train_df, test_df, ts_feature_names, properties, ve
 
     return results_dict_train, results_dict_test, results_dict_baseline_train, results_dict_baseline_test
 
+
 if __name__ == '__main__':
     args = utils.parse_config()
     utils.create_logger_and_set_level(args.verbose)
         
     # define buyer properties
     properties = {
-        'product_shelf_life': 13,
+        'product_shelf_life': 52,
         'ordering_cost': 0.1,
-        'storage_capacity': 40000,
+        'storage_capacity': 3000*52,
         'min_inventory_threshold': 3000,
         'consumption_rate': 3000,
         'storage_cost': 0.2,
