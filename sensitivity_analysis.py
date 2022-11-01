@@ -21,7 +21,7 @@ if __name__ == '__main__':
     file_dir = os.path.join('results/', results_file_name)
 
     experiment_name = 'shelf_life'
-    diff_shelf_lives = [1, 3, 8, 10, 13, 18, 23, 30, 40]
+    diff_shelf_lives = [23, 30, 40, 52]
 
     for shelf_life in diff_shelf_lives:
         # define buyer properties
