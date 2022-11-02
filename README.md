@@ -1,11 +1,10 @@
-# C7-RL-buyer
+# Vesper RL Commodity Trading Agent
 
-A repo for the buyer persona in the Reinforcement Learning project of C7. 
+This repo provides a modular environment for training an agent to handle the procurement of agricultural commodities through the use of Reinforcement Learning. 
 
 ### Current data
 Current data added to the repo is:
-- AAPL.csv --> stock market data of the AAPL stock for experimentation.
-- US_SMP_food_TA.csv --> example data of the US Skimmed Milk Powder price including prices of related products/countries and Technical Indicators.
+- US_SMP_food_TA.csv --> example data of the US Skimmed Milk Powder price including a set of Technical Indicators.
 
 
 ### Installation
