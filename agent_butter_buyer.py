@@ -339,9 +339,10 @@ class BuyerEnvironment(gym.Env):
         points = ax.scatter(measure_per_step[:, 0], self.df_y.loc[measure_per_step[:, 0], 'y'],
                             marker='o', c=measure_per_step[:, 1], cmap=cm, norm=norm)
         f.colorbar(points)
-        ax.set_facecolor('#D0D8E6')
+        ax.set_facecolor('#EEF2F7')
+        plt.rcParams['svg.fonttype'] = 'none'
         plt.tight_layout()
-        plt.savefig(f'figures/{measure}_colour_{dataset}.png', dpi=300)
+        plt.savefig(f'figures/{measure}_colour_{dataset}.svg', dpi=300)
 
         fig = plt.figure(figsize=(10, 6))
         ax = fig.add_subplot(111)
@@ -353,14 +354,15 @@ class BuyerEnvironment(gym.Env):
         ax2 = ax.twinx()
         lns2 = ax2.plot(measure_per_step[:, 0], measure_per_step[:, 1], linewidth=1, label=measure, color='red',
                         alpha=0.5)
-        ax.set_facecolor('#D0D8E6')
+        ax.set_facecolor('#EEF2F7')
+        plt.rcParams['svg.fonttype'] = 'none'
         ax2.set_ylabel(f'{measure}')
         lns = lns1 + lns2
         labs = [l.get_label() for l in lns]
         plt.legend(lns, labs)
         plt.grid()
         plt.tight_layout()
-        plt.savefig(f'figures/{measure}_lines_{dataset}.png', dpi=300)
+        plt.savefig(f'figures/{measure}_lines_{dataset}.svg', dpi=300)
 
     def set_saving(self, saving_mode=False):
         """Turn saving on or off."""
@@ -445,9 +447,8 @@ if __name__ == '__main__':
     }
 
     df = pd.read_csv('./data/US_SMP_food_TA.csv', index_col=0).iloc[69:].reset_index(drop=True).sort_values('ds')
-    ts_feature_names = \
-        ["y",
-         "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band", "momentum1", "kalman"]
+    ts_feature_names = ["y", "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band",
+                        "momentum1", "kalman"]
 
     train_fraction = .75
     train_df = df.iloc[:round(train_fraction * len(df))]
