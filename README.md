@@ -6,7 +6,7 @@ Check out the website for more information about our platform: https://www.vespe
 
 ## Current data
 Current data added to the repo is:
-- US_SMP_food_TA.csv --> example data of the US Skimmed Milk Powder price including a set of Technical Indicators.
+- `US_SMP_food_TA.csv` --> example data of the US Skimmed Milk Powder price including a set of Technical Indicators.
 
 
 ## Installation

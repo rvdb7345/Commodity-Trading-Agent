@@ -41,10 +41,8 @@ if __name__ == '__main__':
         train_df = df.iloc[:round(train_fraction * len(df))]
         test_df = df.iloc[round(train_fraction * len(df)):].reset_index(drop=True)
 
-        ts_feature_names = \
-            ["y", "y_24_quo", "y_26_quo", "y_37_quo", "y_94_quo", "y_20_quo", "y_6_quo", "y_227_pro", "y_785_end",
-             "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band", "momentum1",
-             "kalman"]
+        ts_feature_names = ["ma4", "var4", "momentum0", "rsi", "MACD", "upper_band",
+                            "ema", "diff4", "lower_band", "momentum1", "kalman"]
 
         run_experiment(args, properties, train_df, test_df, ts_feature_names,
                        file_dir+f'_{experiment_name}_{shelf_life}.csv')
