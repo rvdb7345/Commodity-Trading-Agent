@@ -3,9 +3,11 @@
 Created by Vesper in cooperation with Slimmmer AI.
 https://www.vespertool.com/
 """
+import os
 from typing import Union
 import gym
 import logging
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -21,7 +23,7 @@ logger = logging.getLogger('logger')
 MAX_STEPS = 20000
 INITIAL_ACCOUNT_BALANCE = 10000000
 
-VESPER_cmap = np.loadtxt('colormaps/vesper_color_map.txt')
+VESPER_cmap = np.loadtxt('../colormaps/vesper_color_map.txt')
 cm = colors.ListedColormap(VESPER_cmap / 255.0)
 
 
@@ -313,7 +315,7 @@ class BuyerEnvironment(gym.Env):
         results_dict['total_spent_value'] = self.total_spent_value
         return results_dict
 
-    def plot_measure(self, measure='buys', dataset='test'):
+    def plot_measure(self, measure='buys', dataset='test', fig_location=''):
         """Plot the behaviour of the buyer agent."""
         if measure.lower() == 'buys':
             measure_per_step = self.buy_tracker
@@ -342,7 +344,7 @@ class BuyerEnvironment(gym.Env):
         ax.set_facecolor('#D0D8E6')
         plt.rcParams['svg.fonttype'] = 'none'
         plt.tight_layout()
-        plt.savefig(f'figures/{measure}_colour_{dataset}.svg', dpi=300)
+        plt.savefig(f'{fig_location}/{measure}_colour_{dataset}.svg', dpi=300)
 
         fig = plt.figure(figsize=(10, 6))
         ax = fig.add_subplot(111)
@@ -362,14 +364,14 @@ class BuyerEnvironment(gym.Env):
         plt.legend(lns, labs)
         plt.grid()
         plt.tight_layout()
-        plt.savefig(f'figures/{measure}_lines_{dataset}.svg', dpi=300)
+        plt.savefig(f'{fig_location}/{measure}_lines_{dataset}.svg', dpi=300)
 
     def set_saving(self, saving_mode=False):
         """Turn saving on or off."""
         self.save_results = saving_mode
 
 
-def run_simulation(env, model, df, dataset, simsteps, plot=False):
+def run_simulation(env, model, df, dataset, simsteps, plot=False, fig_location=''):
     """Run simulation of trained model."""
     if plot:
         env.env_method('set_saving', saving_mode=True)
@@ -388,7 +390,7 @@ def run_simulation(env, model, df, dataset, simsteps, plot=False):
     env.render()
 
     if plot:
-        utils.plot_results(env=env, dataset=dataset)
+        utils.plot_results(env=env, dataset=dataset, fig_location=fig_location)
     return env
 
 
@@ -405,7 +407,7 @@ def run_baseline_simulation(env, action, steps=1000):
     return env
 
 
-def train_and_simulate(args, train_df, test_df, ts_feature_names, properties, verbose=20):
+def train_and_simulate(args, train_df, test_df, ts_feature_names, properties, verbose=20, fig_location=''):
     # setup vectorized env and model
     env = DummyVecEnv([lambda: BuyerEnvironment(args, train_df, properties, ts_feature_names)])
     model = PPO('MultiInputPolicy', env, verbose=verbose, learning_rate=0.01)
@@ -414,14 +416,14 @@ def train_and_simulate(args, train_df, test_df, ts_feature_names, properties, ve
     utils.run_and_track_runtime(model.learn, total_timesteps=args.trainsteps)
 
     # carry out simulation with train_set + run baseline
-    env = run_simulation(env, model, train_df, 'train', simsteps=len(train_df), plot=args.plot)
+    env = run_simulation(env, model, train_df, 'train', simsteps=len(train_df), plot=args.plot, fig_location=fig_location)
     results_dict_train = env.env_method('return_results')[0]
     env = run_baseline_simulation(env=env, action=properties['consumption_rate'] / properties['upper_buy_limit'],
                                   steps=len(train_df))
     results_dict_baseline_train = env.env_method('return_results')[0]
 
     # carry out simulation with test_set + run baseline
-    env = run_simulation(env, model, test_df, 'test', simsteps=len(test_df), plot=args.plot)
+    env = run_simulation(env, model, test_df, 'test', simsteps=len(test_df), plot=args.plot, fig_location=fig_location)
     results_dict_test = env.env_method('return_results')[0]
     env = run_baseline_simulation(env=env, action=properties['consumption_rate'] / properties['upper_buy_limit'],
                                   steps=len(test_df))
@@ -433,6 +435,14 @@ def train_and_simulate(args, train_df, test_df, ts_feature_names, properties, ve
 if __name__ == '__main__':
     args = utils.parse_config()
     utils.create_logger_and_set_level(args.verbose)
+
+    # create folder for the figures
+    if args.plot:
+        figure_folder = datetime.now().strftime("%Y%m%d_%H%M")
+        fig_save_location = "../figures/" + figure_folder
+        os.mkdir(fig_save_location)
+    else:
+        fig_save_location = ''
 
     # define buyer properties
     properties = {
@@ -446,7 +456,7 @@ if __name__ == '__main__':
         'upper_buy_limit': 10000
     }
 
-    df = pd.read_csv('data/US_SMP_food_TA.csv', index_col=0).reset_index(drop=True).sort_values('ds')
+    df = pd.read_csv('../data/US_SMP_food_TA.csv', index_col=0).reset_index(drop=True).sort_values('ds')
     ts_feature_names = ["y", "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band",
                         "momentum1", "kalman"]
 
@@ -455,12 +465,11 @@ if __name__ == '__main__':
     test_df = df.iloc[round(train_fraction * len(df)):].reset_index(drop=True)
 
     results_dict_train, results_dict_test, results_dict_baseline_train, results_dict_baseline_test = train_and_simulate(
-        args, train_df, test_df, ts_feature_names, properties)
+        args, train_df, test_df, ts_feature_names, properties, fig_location=fig_save_location)
 
     print(f"Total worth (incl inventory) agent butter (train): {results_dict_train['total_worth']:.2f}")
     print(f"Total worth (incl inventory) baseline (train): {results_dict_baseline_train['total_worth']:.2f}")
-    print(
-        f"Total worth improvement over baseline (train): {(results_dict_train['total_worth'] - results_dict_baseline_train['total_worth']) / results_dict_baseline_train['total_worth'] * 100:.4f}%")
+    print(f"Total worth improvement over baseline (train): {(results_dict_train['total_worth'] - results_dict_baseline_train['total_worth']) / results_dict_baseline_train['total_worth'] * 100:.4f}%")
 
     print(f"Total worth (incl inventory) agent butter (test): {results_dict_test['total_worth']:.2f}")
     print(f"Total worth (incl inventory) baseline (test): {results_dict_baseline_test['total_worth']:.2f}")

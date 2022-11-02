@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     # prep file to save results
     results_file_name = datetime.now().strftime("%Y%m%d_%H%M") + '_experiment_results'
-    file_dir = os.path.join('results/', results_file_name)
+    file_dir = os.path.join('../results/', results_file_name)
 
     experiment_name = 'shelf_life'
     diff_shelf_lives = [23, 30, 40, 52]
@@ -36,7 +36,7 @@ if __name__ == '__main__':
             'upper_buy_limit': 10000
         }
 
-        df = pd.read_csv('./data/US_SMP_food_TA.csv', index_col=0).iloc[69:].reset_index(drop=True).sort_values('ds')
+        df = pd.read_csv('../data/US_SMP_food_TA.csv', index_col=0).iloc[69:].reset_index(drop=True).sort_values('ds')
         train_fraction = .75
         train_df = df.iloc[:round(train_fraction * len(df))]
         test_df = df.iloc[round(train_fraction * len(df)):].reset_index(drop=True)

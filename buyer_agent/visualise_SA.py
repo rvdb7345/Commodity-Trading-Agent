@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt, colors
 
-VESPER_cmap = np.loadtxt('colormaps/vesper_color_map.txt')
+VESPER_cmap = np.loadtxt('../colormaps/vesper_color_map.txt')
 cm = colors.ListedColormap(VESPER_cmap / 255.0)
 
 if __name__ == '__main__':
