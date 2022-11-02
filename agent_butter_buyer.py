@@ -446,7 +446,7 @@ if __name__ == '__main__':
         'upper_buy_limit': 10000
     }
 
-    df = pd.read_csv('./data/US_SMP_food_TA.csv', index_col=0).iloc[69:].reset_index(drop=True).sort_values('ds')
+    df = pd.read_csv('data/US_SMP_food_TA.csv', index_col=0).reset_index(drop=True).sort_values('ds')
     ts_feature_names = ["y", "ma4", "var4", "momentum0", "rsi", "MACD", "upper_band", "ema", "diff4", "lower_band",
                         "momentum1", "kalman"]
 
