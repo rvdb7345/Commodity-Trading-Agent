@@ -10,7 +10,7 @@ from datetime import datetime
 import os
 import pandas as pd
 
-from experiment_butter_buy import run_experiment
+from experiment_SMP_buyer import run_experiment
 
 if __name__ == '__main__':
     args = utils.parse_config()

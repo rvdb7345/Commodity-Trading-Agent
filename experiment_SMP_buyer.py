@@ -11,13 +11,13 @@ import os
 import pandas as pd
 import utils
 
-from agent_butter_buyer import train_and_simulate
+from agent_SMP_buyer import train_and_simulate
 from scipy.stats import wilcoxon
 from tqdm import tqdm
 
 
 def run_experiment(args, properties, train_df, test_df, ts_feature_names, file_dir):
-    """Train and evaluate the agent in agent_butter_buyer.py a set number times and test whether it is significantly
+    """Train and evaluate the agent in agent_SMP_buyer.py a set number times and test whether it is significantly
     better than the baseline."""
 
     experiment_results = pd.DataFrame(
