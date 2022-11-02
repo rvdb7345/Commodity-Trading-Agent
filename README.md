@@ -1,6 +1,8 @@
-# Vesper RL Commodity Trading Agent
+# RL Commodity Trading Agent
 
-This repo provides a modular environment for training an agent to handle the procurement of agricultural commodities through the use of Reinforcement Learning. 
+This repo provides a modular environment for training an agent to handle the procurement of agricultural commodities through the use of Reinforcement Learning. Created by Vesper in collobaration with Slimmer AI.
+
+Check out the website for more information about our platform: https://www.vespertool.com/
 
 ### Current data
 Current data added to the repo is:
