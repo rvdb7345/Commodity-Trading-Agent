@@ -49,7 +49,7 @@ if __name__ == '__main__':
         plt.xlim([min(exp_values[param])-1, max(exp_values[param])+1])
         # plt.grid()
         # ax.xaxis.grid(True)
-        ax.set_facecolor('#EEF2F7')
+        ax.set_facecolor('#D0D8E6')
         plt.rcParams['svg.fonttype'] = 'none'
         plt.savefig(f'figures/SA_{param}.svg')
         plt.show()

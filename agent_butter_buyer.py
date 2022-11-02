@@ -339,7 +339,7 @@ class BuyerEnvironment(gym.Env):
         points = ax.scatter(measure_per_step[:, 0], self.df_y.loc[measure_per_step[:, 0], 'y'],
                             marker='o', c=measure_per_step[:, 1], cmap=cm, norm=norm)
         f.colorbar(points)
-        ax.set_facecolor('#EEF2F7')
+        ax.set_facecolor('#D0D8E6')
         plt.rcParams['svg.fonttype'] = 'none'
         plt.tight_layout()
         plt.savefig(f'figures/{measure}_colour_{dataset}.svg', dpi=300)
@@ -354,7 +354,7 @@ class BuyerEnvironment(gym.Env):
         ax2 = ax.twinx()
         lns2 = ax2.plot(measure_per_step[:, 0], measure_per_step[:, 1], linewidth=1, label=measure, color='red',
                         alpha=0.5)
-        ax.set_facecolor('#EEF2F7')
+        ax.set_facecolor('#D0D8E6')
         plt.rcParams['svg.fonttype'] = 'none'
         ax2.set_ylabel(f'{measure}')
         lns = lns1 + lns2
