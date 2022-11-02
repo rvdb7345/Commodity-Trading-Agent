@@ -1,3 +1,5 @@
+![DALL·E 2022-11-02 11 43 58 - A futuristic poster of an AI trading agent buying dairy commodities using an online platform](https://user-images.githubusercontent.com/33393959/199487657-dda11f14-6bd7-4ad7-bc54-c54e38fe0bfd.png)
+
 # RL Commodity Trading Agent
 
 This repo provides a modular environment for training an agent to handle the procurement of agricultural commodities through the use of Reinforcement Learning. Created by Vesper in collobaration with Slimmer AI.
