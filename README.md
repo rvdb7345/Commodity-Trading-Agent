@@ -1,4 +1,4 @@
-![DALL·E 2022-11-02 11 43 58 - A futuristic poster of an AI trading agent buying dairy commodities using an online platform](https://user-images.githubusercontent.com/33393959/199487657-dda11f14-6bd7-4ad7-bc54-c54e38fe0bfd.png)
+![Cow_AI_rounded](https://user-images.githubusercontent.com/33393959/199488843-0723cef7-dbdc-4dc4-9d6d-45ad78312877.jpeg)
 
 # RL Commodity Trading Agent
 
