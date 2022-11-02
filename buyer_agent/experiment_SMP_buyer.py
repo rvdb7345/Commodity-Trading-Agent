@@ -70,6 +70,11 @@ if __name__ == '__main__':
 
     # prep file to save results
     results_file_name = datetime.now().strftime("%Y%m%d_%H%M") + '_experiment_results.csv'
+
+    # create a figure library if necessary
+    if not os.path.exists('../results'):
+        os.makedirs('../results')
+
     file_dir = os.path.join('../results/', results_file_name)
 
     # define buyer properties

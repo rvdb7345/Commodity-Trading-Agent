@@ -436,8 +436,12 @@ if __name__ == '__main__':
     args = utils.parse_config()
     utils.create_logger_and_set_level(args.verbose)
 
-    # create folder for the figures
+    # create time stamped folder for the figures
     if args.plot:
+        # create a figure directory if necessary
+        if not os.path.exists('../figures'):
+            os.makedirs('../figures')
+
         figure_folder = datetime.now().strftime("%Y%m%d_%H%M")
         fig_save_location = "../figures/" + figure_folder
         os.mkdir(fig_save_location)
