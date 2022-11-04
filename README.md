@@ -1,24 +1,18 @@
 ![Cow_AI_rounded](https://user-images.githubusercontent.com/33393959/199488843-0723cef7-dbdc-4dc4-9d6d-45ad78312877.jpeg)
 
-# RL Commodity Trading Agent 🤖📈
+# 🤖📈 RL Commodity Trading Agent
 
 This repo provides a modular environment for training an agent to handle the procurement of agricultural commodities through the use of Reinforcement Learning. Created by Vesper in collobaration with Slimmer AI.
 
-Check out the website for more information about our platform: 
-</div>
-<div align="center">
-
-[![View site - vespertool](https://img.shields.io/badge/View_site-Vespertool-2ea44f?style=for-the-badge)]([https://rvdb7345.github.io/Commodity-Trading-Agent/](https://www.vespertool.com/))
-</div>
-
+Check out the website for more information about our platform: <a href="https://www.vespertool.com/">Vesper - The commodity intelligence platform built to grow your business</a>
 
 <div align="center">
 
-[![GitHub tag](https://img.shields.io/github/tag/rvdb7345/Commodity-Trading-Agent?include_prereleases=&sort=semver&color=blue)](https://github.com/rvdb7345/Commodity-Trading-Agent/releases/)
+[![GitHub release](https://img.shields.io/github/release/rvdb7345/Commodity-Trading-Agent?include_prereleases=&sort=semver&color=%23796EFF)](https://github.com/rvdb7345/Commodity-Trading-Agent/releases/)
 [![License](https://img.shields.io/badge/License-MIT-blue)](#license)
 [![issues - Commodity-Trading-Agent](https://img.shields.io/github/issues/rvdb7345/Commodity-Trading-Agent)](https://github.com/rvdb7345/Commodity-Trading-Agent/issues)
   
-  [![rvdb7345 - Commodity-Trading-Agent](https://img.shields.io/static/v1?label=rvdb7345&message=Commodity-Trading-Agent&color=blue&logo=github)](https://github.com/rvdb7345/Commodity-Trading-Agent "Go to GitHub repo")
+  [![rvdb7345 - Commodity-Trading-Agent](https://img.shields.io/static/v1?label=rvdb7345&message=Commodity-Trading-Agent&color=%23796EFF&logo=github)](https://github.com/rvdb7345/Commodity-Trading-Agent "Go to GitHub repo")
 [![stars - Commodity-Trading-Agent](https://img.shields.io/github/stars/rvdb7345/Commodity-Trading-Agent?style=social)](https://github.com/rvdb7345/Commodity-Trading-Agent)
 [![forks - Commodity-Trading-Agent](https://img.shields.io/github/forks/rvdb7345/Commodity-Trading-Agent?style=social)](https://github.com/rvdb7345/Commodity-Trading-Agent)
 </div>
