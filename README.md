@@ -4,7 +4,25 @@
 
 This repo provides a modular environment for training an agent to handle the procurement of agricultural commodities through the use of Reinforcement Learning. Created by Vesper in collobaration with Slimmer AI.
 
-Check out the website for more information about our platform: https://www.vespertool.com/
+Check out the website for more information about our platform: 
+</div>
+<div align="center">
+
+[![View site - vespertool](https://img.shields.io/badge/View_site-Vespertool-2ea44f?style=for-the-badge)]([https://rvdb7345.github.io/Commodity-Trading-Agent/](https://www.vespertool.com/))
+</div>
+
+
+<div align="center">
+
+[![GitHub tag](https://img.shields.io/github/tag/rvdb7345/Commodity-Trading-Agent?include_prereleases=&sort=semver&color=blue)](https://github.com/rvdb7345/Commodity-Trading-Agent/releases/)
+[![License](https://img.shields.io/badge/License-MIT-blue)](#license)
+[![issues - Commodity-Trading-Agent](https://img.shields.io/github/issues/rvdb7345/Commodity-Trading-Agent)](https://github.com/rvdb7345/Commodity-Trading-Agent/issues)
+  
+  [![rvdb7345 - Commodity-Trading-Agent](https://img.shields.io/static/v1?label=rvdb7345&message=Commodity-Trading-Agent&color=blue&logo=github)](https://github.com/rvdb7345/Commodity-Trading-Agent "Go to GitHub repo")
+[![stars - Commodity-Trading-Agent](https://img.shields.io/github/stars/rvdb7345/Commodity-Trading-Agent?style=social)](https://github.com/rvdb7345/Commodity-Trading-Agent)
+[![forks - Commodity-Trading-Agent](https://img.shields.io/github/forks/rvdb7345/Commodity-Trading-Agent?style=social)](https://github.com/rvdb7345/Commodity-Trading-Agent)
+</div>
+
 
 ## 💿 Current data
 Current data added to the repo is:
@@ -90,3 +108,6 @@ After creating the results for every parameter, it can be visualised using the f
 python visualise_SA.py
 ```
 
+## License
+
+Released under [MIT](/LICENSE) by [@rvdb7345](https://github.com/rvdb7345).
